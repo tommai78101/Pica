@@ -135,11 +135,25 @@ static inline void HS_New(C3D_HalfSpace* out, const C3D_FVec* normal, const C3D_
 }
 
 /**
- * @brief Obtaining the origin from the C3D_HalfSpace object.
+ * @brief Obtain the origin from the C3D_HalfSpace object.
  * @param[in]     in    C3D_HalfSpace object to retrieve the origin vector position from.
  * @return The C3D_FVec origin.
  */
 C3D_FVec HS_GetOrigin(C3D_HalfSpace* in);
 
+/**
+ * @brief Get the distance from the half space to the point.
+ * @param[in]    in     C3D_HalfSpace object to measure from.
+ * @param[in]    point  C3D_FVec vector position to measure to.
+ * @return The distance between the half space to the point.
+ */
+float HS_GetDistance(C3D_HalfSpace* in, const C3D_FVec* point);
 
+/**
+ * @brief Projects the half space to the vector position.
+ * @param[in]    in     C3D_HalfSpace object.
+ * @param[in]    point  Projection destination position.
+ * @return The projection vector.
+ */
+C3D_FVec HS_Project(C3D_HalfSpace* in, const C3D_FVec* point);
 
