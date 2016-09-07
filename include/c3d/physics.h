@@ -166,6 +166,8 @@ C3D_FVec HS_Project(C3D_HalfSpace* in, const C3D_FVec* point);
 //May need to change the stack size to a different value.
 #define C3D_PHYSICSSTACK_MAX_SIZE 1024*20
 #define C3D_PHYSICSHEAP_MAX_SIZE 1024*20
+#define C3D_PHYSICSHEAP_INIT_SIZE 1024
+#define MACRO_POINTER_ADD(POINTER,BYTES) ((__typeof__(POINTER))(((u8 *)POINTER)+(BYTES)))
 
 typedef struct C3D_PhysicsStackEntry 
 {
@@ -238,7 +240,7 @@ void PhysicsStack_Init(C3D_PhysicsStack* out);
 void PhysicsStack_Free(C3D_PhysicsStack* in);
 
 /**
- * @brief Allocates new memory to the C3D_PhysicsStack object.
+ * @brief Allocates new memory to the C3D_PhysicsStack object. If stack is NULL, it will crash.
  * @param[in,out]   stack      The C3D_PhysicsStack object to assign the allocated memory to.
  * @param[in]       newSize    Specify the new size of the allocated memory.
  * @return Pointer to the allocated memory.
@@ -246,11 +248,38 @@ void PhysicsStack_Free(C3D_PhysicsStack* in);
 void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize);
 
 /**
- * @brief Releases the memory from the C3D_PhysicsStack object.
+ * @brief Releases the memory from the C3D_PhysicsStack object. If stack is NULL, it will crash.
  * @param[in,out]     stack       The C3D_PhysicsStack object to release memory from.
  * @param[in]         data        The pointer that the C3D_PhysicsStack object needs to reference to release.
  */
 void PhysicsStack_Deallocate(C3D_PhysicsStack* stack, void* data);
+
+/**
+ * @brief Initializes the C3D_PhysicsHeap object.
+ * @param[in,out]     out     The C3D_PhysicsHeap object to be initialized.
+ */
+void PhysicsHeap_Init(C3D_PhysicsHeap* out);
+
+/**
+ * @brief Releases the C3D_PhysicsHeap object.
+ * @param[in,out]      out     The C3D_PhysicsHeap object to be released.
+ */
+void PhysicsHeap_Free(C3D_PhysicsHeap* out);
+
+/**
+ * @brief Allocates new memory to the C3D_PhysicsHeap object. If heap is NULL, it will crash.
+ * @param[in,out]      heap       The C3D_PhysicsHeap object to assign the allocated memory to.
+ * @param[in]          newSize    Specify the new size of the allocated memory.
+ * @return Pointer to the allocated memory.
+ */
+void* PhysicsHeap_Allocate(C3D_PhysicsHeap* heap, unsigned int newSize);
+
+/**
+ * @brief Releases the memory from the C3D_PhysicsHeap object. If heap is null, it will crash.
+ * @param[in,out]      heap      The C3D_PhysicsHeap object to release allocated memory from.
+ * @param[in]          data      The pointer that the C3D_PhysicsHeap object needs to reference to release.
+ */
+void PhysicsHeap_Deallocate(C3D_PhysicsHeap* heap, void* data);
 
 /**************************************************
  * Scene Functions
