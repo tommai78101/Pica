@@ -24,7 +24,8 @@ VERSION	:=	$(CITRO3D_MAJOR).$(CITRO3D_MINOR).$(CITRO3D_PATCH)
 TARGET		:=	citro3d
 BUILD		:=	build
 SOURCES		:=	source \
-				source/maths
+				source/maths \
+				source/physics
 DATA		:=	data
 INCLUDES	:=	include
 
