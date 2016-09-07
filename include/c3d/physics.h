@@ -3,22 +3,25 @@
 #include "maths.h"
 #include <stdbool.h>
 
-typedef struct C3D_AABB {
+typedef struct C3D_AABB 
+{
 	C3D_FVec min;
 	C3D_FVec max;
 } C3D_AABB;
 
-typedef struct C3D_HalfSpace {
+typedef struct C3D_HalfSpace 
+{
 	C3D_FVec normal;
 	float distance;
 } C3D_HalfSpace;
 
-typedef struct C3D_RaycastData {
+typedef struct C3D_RaycastData 
+{
 	C3D_FVec rayOrigin;
 	C3D_FVec direction;
-	float deltaTime;
-	float timeOfImpact;
-	C3D_FVec normal;
+	float endPointTime;
+	float timeOfImpact;  //Solved time of impact.
+	C3D_FVec normal;     //Surface normal at impact.
 } C3D_RaycastData;
 
 /***********************************************
@@ -71,3 +74,72 @@ bool AABB_CollidesAABB(const C3D_AABB* a, const C3D_AABB* b);
  * @param[out]  c   A unit vector perpendicular to unit vectors, "a" and "b".
  */ 
 void ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
+
+/**************************************************
+ * Raycasting Helper Functions
+ **************************************************/
+
+/**
+ * @brief Create a new C3D_RaycastData object.
+ * @param[out]    out            The resulting C3D_RaycastData object. If out is NULL, it will crash.
+ * @param[in]     origin         The beginning point of the ray.
+ * @param[in]     direction      The direction of the ray.
+ * @param[in]     endPointTime   The time specifying the ray end point.
+ */
+static inline void Raycast_New(C3D_RaycastData* out, const C3D_FVec* origin, const C3D_FVec* direction, const float endPointTime) 
+{
+	out->rayOrigin = *origin;
+	out->direction = FVec3_Normalize(*direction);
+	out->endPointTime = endPointTime;
+}
+
+/**************************************************
+ * Half-Space Helper Functions
+ **************************************************/
+
+/**
+ * @brief Create a new C3D_HalfSpace object.
+ * @param[out]     out         The resulting C3D_HalfSpace object. If out is NULL, it will crash.
+ * @param[in]      normal      The normal vector.
+ * @param[in]      distance    The distance.
+ */
+static inline void HS_Init(C3D_HalfSpace* out, const C3D_FVec normal, float distance)
+{
+	out->normal = normal;
+	out->distance = distance;
+}
+
+/**
+ * @brief Create a new C3D_HalfSpace object, using 3 points in the 3D space.
+ * @param[out]     out         The resulting C3D_HalfSpace object. If out is NULL, it will crash.
+ * @param[in]      a           The first point.
+ * @param[in]      b           The second point.
+ * @param[in]      c           The third point.
+ */
+static inline void HS_NewFVec(C3D_HalfSpace* out, const C3D_FVec* a, const C3D_FVec* b, const C3D_FVec* c)
+{
+	out->normal = FVec3_Normalize(FVec3_Cross(FVec3_Subtract(*b, *a), FVec3_Subtract(*c, *a)));
+	out->distance = FVec3_Dot(out->normal, *a);
+}
+
+/**
+ * @brief Create a new C3D_HalfSpace object, using a normal vector and a vector position.
+ * @param[out]     out      The resulting C3D_HalfSpace object. If out is NULL, it will crash.
+ * @param[in]      normal   The normal vector.
+ * @param[in]      point    The vector position.
+ */
+static inline void HS_New(C3D_HalfSpace* out, const C3D_FVec* normal, const C3D_FVec* point)
+{
+	out->normal = FVec3_Normalize(*normal);
+	out->distance = FVec3_Dot(out->normal, *point);
+}
+
+/**
+ * @brief Obtaining the origin from the C3D_HalfSpace object.
+ * @param[in]     in    C3D_HalfSpace object to retrieve the origin vector position from.
+ * @return The C3D_FVec origin.
+ */
+C3D_FVec HS_GetOrigin(C3D_HalfSpace* in);
+
+
+
