@@ -1,7 +1,9 @@
 #pragma once
 #include "types.h"
 #include "maths.h"
+#include <3ds.h>
 #include <stdbool.h>
+#include <assert.h>
 
 typedef struct C3D_AABB 
 {
@@ -24,9 +26,9 @@ typedef struct C3D_RaycastData
 	C3D_FVec normal;     //Surface normal at impact.
 } C3D_RaycastData;
 
-/***********************************************
+/**************************************************
  * AABB Box Collision Helper Functions 
- ***********************************************/
+ **************************************************/
 
 /**
  * @brief Checks if inner AABB box is within the outer AABB box.
@@ -157,3 +159,111 @@ float HS_GetDistance(C3D_HalfSpace* in, const C3D_FVec* point);
  */
 C3D_FVec HS_Project(C3D_HalfSpace* in, const C3D_FVec* point);
 
+/**************************************************
+ * Physics Memory Functions
+ **************************************************/
+
+//May need to change the stack size to a different value.
+#define C3D_PHYSICSSTACK_MAX_SIZE 1024*20
+#define C3D_PHYSICSHEAP_MAX_SIZE 1024*20
+
+typedef struct C3D_PhysicsStackEntry 
+{
+	u8* data;
+	unsigned int size;
+} C3D_PhysicsStackEntry;
+
+typedef struct C3D_PhysicsStack 
+{
+	u8 memory[C3D_PHYSICSSTACK_MAX_SIZE];
+	struct C3D_PhysicsStackEntry* entries;
+	
+	unsigned int index;
+	unsigned int allocation;
+	unsigned int entryCount;
+	unsigned int entryCapacity;
+} C3D_PhysicsStack;
+
+typedef struct HeapHeader 
+{
+	struct HeapHeader* next;
+	struct HeapHeader* previous;
+	unsigned int size;
+} HeapHeader;
+
+typedef struct HeapFreeBlock 
+{
+	struct HeapHeader* header;
+	unsigned int size;
+} HeapFreeBlock;
+
+typedef struct C3D_PhysicsHeap 
+{
+	struct HeapHeader* memory;
+	struct HeapFreeBlock* freeBlocks;
+	unsigned int freeBlocksCount;
+	unsigned int freeBlocksCapacity;
+} C3D_PhysicsHeap;
+
+typedef struct PageBlock 
+{
+	struct PageBlock* next;
+} PageBlock;
+
+typedef struct Page 
+{
+	struct Page* next;
+	struct PageBlock* data;
+} Page;
+
+typedef struct C3D_PhysicsPage 
+{
+	unsigned int blockSize;
+	unsigned int blocksPerPage;
+	struct Page* pages;
+	unsigned int pagesCount;
+	struct PageBlock* freeList;
+} C3D_PhysicsPage;
+
+/**
+ * @brief Initializes the C3D_PhysicsStack object. If out is NULL, it will crash.
+ * @param[in,out]     out    C3D_PhyiscsStack object to be initialized.
+ */
+void PhysicsStack_Init(C3D_PhysicsStack* out);
+
+/**
+ * @brief Releases the C3D_PhysicsStack object. If out is NULL or if the C3D_PhysicsStack object is not empty, it will crash/assert failure.
+ * @param[in]    in     Check/Assert the object if empty.  
+ */
+void PhysicsStack_Free(C3D_PhysicsStack* in);
+
+/**
+ * @brief Allocates new memory to the C3D_PhysicsStack object.
+ * @param[in,out]   stack      The C3D_PhysicsStack object to assign the allocated memory to.
+ * @param[in]       newSize    Specify the new size of the allocated memory.
+ * @return Pointer to the allocated memory.
+ */
+void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize);
+
+/**
+ * @brief Releases the memory from the C3D_PhysicsStack object.
+ * @param[in,out]     stack       The C3D_PhysicsStack object to release memory from.
+ * @param[in]         data        The pointer that the C3D_PhysicsStack object needs to reference to release.
+ */
+void PhysicsStack_Deallocate(C3D_PhysicsStack* stack, void* data);
+
+/**************************************************
+ * Scene Functions
+ **************************************************/
+
+typedef struct C3D_ContactData 
+{
+	
+} C3D_ContactData;
+
+
+
+typedef struct C3D_Scene 
+{
+	C3D_ContactData contactManager;
+} C3D_Scene;
