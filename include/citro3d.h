@@ -24,6 +24,8 @@ extern "C" {
 
 #include "c3d/renderbuffer.h"
 #include "c3d/renderqueue.h"
+	
+#include "c3d/physics.h"
 
 #ifdef __cplusplus
 }
