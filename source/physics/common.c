@@ -183,3 +183,76 @@ void PhysicsHeap_Deallocate(C3D_PhysicsHeap* heap, void* data)
 		heap->freeBlocks[heap->freeBlocksCount++] = block;
 	}
 }
+
+void PhysicsPage_Init(C3D_PhysicsPage* out, unsigned int elementSize, unsigned int elementsPerPage)
+{
+	out->blockSize = elementSize;
+	out->blocksPerPage = elementsPerPage;
+	out->pages = NULL;
+	out->pagesCount = 0;
+	out->freeList = NULL;
+}
+
+void PhysicsPage_Free(C3D_PhysicsPage* out)
+{
+	Page* page = out->pages;
+	for (unsigned int i = 0; i < out->pagesCount; i++)
+	{
+		Page* next = page->next;
+		linearFree(page);
+		page = next;
+	}
+	out->freeList = NULL;
+	out->pagesCount = 0;
+}
+
+void* PhysicsPage_Allocate(C3D_PhysicsPage* pageAllocator)
+{
+	if (pageAllocator->freeList)
+	{
+		PageBlock* data = pageAllocator->freeList;
+		pageAllocator->freeList = data->next;
+		return data;
+	}
+	else 
+	{
+		Page* page = (Page*) linearAlloc(sizeof(Page) + pageAllocator->blockSize * pageAllocator->blocksPerPage);
+		pageAllocator->pagesCount++;
+		page->next = pageAllocator->pages;
+		page->data = (PageBlock*) MACRO_POINTER_ADD(page, sizeof(Page));
+		pageAllocator->pages = page;
+		
+		unsigned int blocksPerPageMinusOne = pageAllocator->blocksPerPage - 1;
+		for (unsigned int i = 0; i < blocksPerPageMinusOne; i++)
+		{
+			PageBlock* node = MACRO_POINTER_ADD(page->data, pageAllocator->blockSize);
+			PageBlock* next = MACRO_POINTER_ADD(page->data, pageAllocator->blockSize * (i - 1));
+			node->next = next;
+		}
+		PageBlock* last = MACRO_POINTER_ADD(page->data, pageAllocator->blockSize * (blocksPerPageMinusOne));
+		last->next = NULL;
+		pageAllocator->freeList = page->data->next;
+		return page->data;
+	}
+}
+
+void PhysicsPage_Deallocate(C3D_PhysicsPage* pageAllocator, void* data)
+{
+#ifdef _PHYSICS_DEBUG
+	bool found = false;
+	for (Page* page = pageAllocator->pages; page; page = page->next)
+	{
+		if (data >= page->data && data < MACRO_POINTER_ADD(page->data, pageAllocator->blockSize * pageAllocator->blocksPerPage))
+		{
+			found = true;
+			break;
+		}
+	}
+	
+	assert(found);
+#endif
+	
+	((PageBlock*) data)->next = pageAllocator->freeList;
+	pageAllocator->freeList = ((PageBlock*) data);
+}
+

@@ -163,10 +163,10 @@ C3D_FVec HS_Project(C3D_HalfSpace* in, const C3D_FVec* point);
  * Physics Memory Functions
  **************************************************/
 
-//May need to change the stack size to a different value.
-#define C3D_PHYSICSSTACK_MAX_SIZE 1024*20
-#define C3D_PHYSICSHEAP_MAX_SIZE 1024*20
-#define C3D_PHYSICSHEAP_INIT_SIZE 1024
+//May need to change the stack and heap size to different values.
+#define C3D_PHYSICSSTACK_MAX_SIZE 1024*20   //20KB
+#define C3D_PHYSICSHEAP_MAX_SIZE 1024*20    //20KB
+#define C3D_PHYSICSHEAP_INIT_SIZE 1024      //1KB
 #define MACRO_POINTER_ADD(POINTER,BYTES) ((__typeof__(POINTER))(((u8 *)POINTER)+(BYTES)))
 
 typedef struct C3D_PhysicsStackEntry 
@@ -275,24 +275,85 @@ void PhysicsHeap_Free(C3D_PhysicsHeap* out);
 void* PhysicsHeap_Allocate(C3D_PhysicsHeap* heap, unsigned int newSize);
 
 /**
- * @brief Releases the memory from the C3D_PhysicsHeap object. If heap is null, it will crash.
+ * @brief Releases the memory from the C3D_PhysicsHeap object. If heap is NULL, it will crash.
  * @param[in,out]      heap      The C3D_PhysicsHeap object to release allocated memory from.
  * @param[in]          data      The pointer that the C3D_PhysicsHeap object needs to reference to release.
  */
 void PhysicsHeap_Deallocate(C3D_PhysicsHeap* heap, void* data);
 
+/**
+ * @brief Initializes the C3D_PhysicsPage object. If out is NULL, it will crash.
+ * @param[in,out]     out               The resulting C3D_PhysicsPage object.
+ * @param[in]         elementSize       The size of each element intended for initialization.
+ * @param[in]         elementsPerPage   The size of elements per page.
+ */
+void PhysicsPage_Init(C3D_PhysicsPage* out, unsigned int elementSize, unsigned int elementsPerPage);
+
+/**
+ * @brief Releases the memory from the C3D_PhysicsPage object. This is also used for clearing the C3D_PhysicsPage object. If out is NULL, it will crash.
+ * @param[in,out]     out     The resulting C3D_PhysicsPage to be released.
+ */
+void PhysicsPage_Free(C3D_PhysicsPage* out);
+
+/**
+ * @brief Allocates new memory to the C3D_PhysicsPage object. if pageAllocator is NULL, it will crash.
+ * @param[in,out]    pageAllocator    The C3D_PhysicsPage object. Here, this object handles the allocation of pages.
+ * @return The page data that was most recently modified (allocated/deallocated).
+ */
+void* PhysicsPage_Allocate(C3D_PhysicsPage* pageAllocator);
+
+/**
+ * @brief Releases the allocated memory from the C3D_PhysicsPage object. If pageAllocator is NULL, it will crash.
+ * @param[in,out]   pageAllocator    The C3D_PhysicsPage object to release the allocated memory from.
+ * @param[in]       data             The pointer to the data that the C3D_PhysicsPage is referencing from to release.
+ */
+void PhysicsPage_Deallocate(C3D_PhysicsPage* pageAllocator, void* data);
+
+/**************************************************
+ * Contact Functions
+ **************************************************/
+
+/**
+ *  The closest pair of features between two objects (a feature is either a vertex or an edge).
+ */
+typedef union C3D_FeaturePair 
+{
+	struct 
+	{
+		u8 inR;
+		u8 outR;
+		u8 inI;
+		u8 outI;
+	};
+	unsigned int key;
+} C3D_FeaturePair;
+
+typedef struct C3D_Contact 
+{
+	C3D_FVec position;
+	float penetration;
+	float normalImpulse;
+	float tangentImpulse[2];
+	float bias;
+	float normalMass;
+	float tangentMass[2];
+	
+} C3D_Contact;
+
+
 /**************************************************
  * Scene Functions
  **************************************************/
 
-typedef struct C3D_ContactData 
+typedef struct C3D_ContactManager 
 {
 	
-} C3D_ContactData;
+} C3D_ContactManager;
 
 
 
 typedef struct C3D_Scene 
 {
-	C3D_ContactData contactManager;
+	C3D_ContactManager contactManager;
+	
 } C3D_Scene;
