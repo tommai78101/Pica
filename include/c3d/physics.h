@@ -47,3 +47,19 @@ static inline bool AABB_CollidesAABB(const C3D_AABB* a, const C3D_AABB* b){
 		return false;
 	return true;
 }
+
+// http://box2d.org/2014/02/computing-a-basis/
+static inline void ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c)
+{
+	// Suppose vector a has all equal components and is a unit vector: a = (s, s, s)
+	// Then 3*s*s = 1, s = sqrt(1/3) = 0.57735027. This means that at least one component of a
+	// unit vector must be greater or equal to 0.57735027. Can use SIMD select operation.
+
+	if (fabsf(a->x) >= 0.57735027f)
+		*b = FVec3_New(a->y, -a->x, 0.0f);
+	else
+		*b = FVec3_New(0.0f, a->z, -a->y);
+
+	*b = FVec3_Normalize(*b);
+	*c = FVec3_Cross(*a, *b);
+}
