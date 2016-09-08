@@ -326,10 +326,14 @@ typedef struct C3D_Transform
 	C3D_FQuat rotation;
 } C3D_Transform;
 
+/**
+ * Extent: Half-extents, or the half size of a full axis-aligned bounding box volume. Center of the box, plus half width/height/depth.
+ *         Extents as in, you have vec3 and the real position of the box is -vec3 (AABB.min) and +vec3 (AABB.max).
+ */
 typedef struct C3D_Box 
 {
 	struct C3D_Transform localTransform;
-	C3D_FVec energy;
+	C3D_FVec extent; 
 	struct C3D_Box* next;
 	struct C3D_Body* body;
 } C3D_Box;
