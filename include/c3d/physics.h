@@ -310,11 +310,92 @@ void* PhysicsPage_Allocate(C3D_PhysicsPage* pageAllocator);
 void PhysicsPage_Deallocate(C3D_PhysicsPage* pageAllocator, void* data);
 
 /**************************************************
+ * Axis-aligned Bounding Box (AABB) Container Functions.
+ **************************************************/
+
+typedef struct C3D_MassData 
+{
+	C3D_Mtx inertia;
+	C3D_FVec center;
+	float mass;
+} C3D_MassData;
+
+typedef struct C3D_Transform 
+{
+	C3D_FVec position;
+	C3D_FQuat rotation;
+} C3D_Transform;
+
+typedef struct C3D_Box 
+{
+	struct C3D_Transform localTransform;
+	C3D_FVec energy;
+	struct C3D_Box* next;
+	struct C3D_Body* body;
+} C3D_Box;
+
+/**************************************************
+ * Physics Body Functions.
+ **************************************************/
+
+typedef enum C3D_BodyType 
+{
+	StaticBody,
+	DynamicBody,
+	KinematicBody
+} C3D_BodyType;
+
+typedef enum C3D_BodyFlag 
+{
+	Awake         = 0x001,
+	Active        = 0x002,
+	AllowSleep    = 0x004,
+	BodyIsland    = 0x010,
+	Static        = 0x020,
+	Dynamic       = 0x040,
+	Kinematic     = 0x080,
+	LockAxisX     = 0x100,
+	LockAxisY     = 0x200,
+	LockAxisZ     = 0x400,
+} C3D_BodyFlag;
+
+typedef struct C3D_Body 
+{
+	C3D_Mtx inverseInertiaModel;
+	C3D_Mtx inverseInertiaWorld;
+	float mass;
+	float inverseMass;
+	C3D_FVec linearVelocity;
+	C3D_FVec angularVelocity;
+	C3D_FVec force;
+	C3D_FVec torque;
+	struct C3D_Transform transform;
+	C3D_FQuat quaternion;
+	C3D_FVec localCenter;
+	C3D_FVec worldCenter;
+	float sleepTime;
+	float gravityScale;
+	float layers;
+	unsigned int flags;
+	struct C3D_Box* boxes;
+	void* userData;
+	struct C3D_Scene* scene;
+	struct C3D_Body* next;
+	struct C3D_Body* previous;
+	unsigned int islandIndex;
+	float linearDamping;
+	float angularDamping;
+	struct C3D_ContactEdge* contactList;
+} C3D_Body;
+
+
+/**************************************************
  * Contact Functions
  **************************************************/
 
 /**
- *  The closest pair of features between two objects (a feature is either a vertex or an edge).
+ *  The closest pair of features between two objects (a feature is either a vertex or an edge). 
+ *  TODO: Need to know what the inR/I, outR/I mean.
  */
 typedef union C3D_FeaturePair 
 {
@@ -330,15 +411,60 @@ typedef union C3D_FeaturePair
 
 typedef struct C3D_Contact 
 {
-	C3D_FVec position;
-	float penetration;
-	float normalImpulse;
-	float tangentImpulse[2];
-	float bias;
-	float normalMass;
-	float tangentMass[2];
-	
+	C3D_FVec position;               //World coordinate contact position
+	float penetration;               //Depth of penetration from collision
+	float normalImpulse;             //Accumulated normal impulse.
+	float tangentImpulse[2];         //Accumulated friction impulse. Tangent, because it's the opposite direction.
+	float bias;                      //Restitution + Baumgarte Stabilization.
+	float normalMass;                //Normal constraint mass.
+	float tangentMass[2];            //Tangent constraint mass.
+	C3D_FeaturePair featurePair;     //Features on A and B for this contact position.
+	u8 warmStarted;                  //Used for debug rendering.
 } C3D_Contact;
+
+typedef struct C3D_Manifold
+{
+	struct C3D_Box* A;
+	struct C3D_Box* B;
+	C3D_FVec normal;
+	C3D_FVec tangentVectors[2];
+	struct C3D_Contact contacts[8];
+	unsigned int contactsCount;
+	struct C3D_Manifold* next;
+	struct C3D_Manifold* previous;
+	bool sensor;
+} C3D_Manifold;
+
+typedef enum C3D_ContactConstraintFlag 
+{
+	Colliding        = 0x00000001,
+	WasColliding     = 0x00000002,
+	ConstraintIsland = 0x00000004,
+} C3D_ContactConstraintFlag;
+
+typedef struct C3D_ContactEdge 
+{
+	struct C3D_Body* other;
+	struct C3D_ContactConstraint* constraint;
+	struct C3D_ContactEdge* next;
+	struct C3D_ContactEdge* previous;
+} C3D_ContactEdge;
+
+typedef struct C3D_ContactConstraint 
+{
+	struct C3D_Box* A;
+	struct C3D_Box* B;
+	struct C3D_Body* bodyA;
+	struct C3D_Body* bodyB;
+	struct C3D_ContactEdge edgeA;
+	struct C3D_ContactEdge edgeB;
+	struct C3D_ContactConstraint* next;
+	struct C3D_ContactConstraint* previous;
+	float friction;
+	float restitution;
+	struct C3D_Manifold manifold;
+	unsigned int flags;
+} C3D_ContactConstraint;
 
 
 /**************************************************
