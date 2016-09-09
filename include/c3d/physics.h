@@ -329,6 +329,7 @@ typedef struct C3D_Transform
 /**
  * Extent: Half-extents, or the half size of a full axis-aligned bounding box volume. Center of the box, plus half width/height/depth.
  *         Extents as in, you have vec3 and the real position of the box is -vec3 (AABB.min) and +vec3 (AABB.max).
+ *         RandyGaul: "Extent, as in the extent of each OBB axis."
  */
 typedef struct C3D_Box 
 {
