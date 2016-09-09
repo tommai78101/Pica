@@ -399,16 +399,27 @@ typedef struct C3D_Body
 
 /**
  *  The closest pair of features between two objects (a feature is either a vertex or an edge). 
- *  TODO: Need to know what the inR/I, outR/I mean.
+ *  in stands for "incoming"
+ *  out stands for "outgoing"
+ *  I stands for "incident"
+ *  R stands for "reference"
+ *  See Dirk Gregorius GDC 2015 on creating contacts for more details. (Physics for Game Programmers: Robust Contact Creation for Physics Simulations)
+ *  
+ *  Each feature pair is used to cache solutions from one physics tick to another. This is
+ *  called warmstarting, and lets boxes stack and stay stable. Feature pairs identify points
+ *  of contact over multiple physics ticks. Each feature pair is the junction of an incoming
+ *  feature and an outgoing feature, usually a result of clipping routines. The exact info
+ *  stored in the feature pair can be arbitrary as long as the result is a unique ID for a
+ *  given intersecting configuration.
  */
 typedef union C3D_FeaturePair 
 {
 	struct 
 	{
-		u8 inR;
-		u8 outR;
-		u8 inI;
-		u8 outI;
+		u8 incomingReference;
+		u8 outgoingReference;
+		u8 incomingIncident;
+		u8 outgoingIncident;
 	};
 	unsigned int key;
 } C3D_FeaturePair;
