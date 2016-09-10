@@ -321,17 +321,32 @@ typedef struct C3D_MassData
 	float mass;
 } C3D_MassData;
 
+/**************************************************
+ * Transform Helper Functions.
+ **************************************************/
+
 typedef struct C3D_Transform 
 {
 	C3D_FVec position;
 	C3D_Mtx rotation;
 } C3D_Transform;
 
+/**
+ * @brief Copies data from one to the other.
+ * @param[out]   out   The destination to copy to.
+ * @param[in]    in    The source to copy from.
+ */
 static inline void Transform_Copy(C3D_Transform* out, C3D_Transform* in)
 {
 	*out = *in;
 }
 
+/**
+ * @brief Multiplies the C3D_Transform objects together. Breaks them into rotation matrix multiplication and matrix translation.
+ * @param[out]      out      The resulting C3D_Transform object.
+ * @param[in]       lhs      The C3D_Transform object operand to be multiplied on the left-hand side of the operator.
+ * @param[in]       rhs      The C3D_Transform object operand to be multiplied on the right-hand side of the operator.
+ */
 static inline void Transform_Multiply(C3D_Transform* out, const C3D_Transform* lhs, const C3D_Transform* rhs)
 {
 	C3D_Transform temp;
@@ -347,6 +362,12 @@ static inline void Transform_Multiply(C3D_Transform* out, const C3D_Transform* l
 	Transform_Copy(out, &temp);
 }
 
+/**
+ * @brief First transposes the rotation matrix, then multiplies the rotation matrix with the vector.
+ * @param[out]       out                The resulting C3D_FVec vector.
+ * @param[in]        rotationMatrix     The rotation matrix, untransposed.
+ * @param[in]        vector             The C3D_FVec vector to be multiplied.
+ */
 static inline void Transform_MultiplyTransposeFVec(C3D_FVec* out, const C3D_Mtx* rotationMatrix, const C3D_FVec* vector)
 {
 	C3D_Mtx transpose;
@@ -355,15 +376,25 @@ static inline void Transform_MultiplyTransposeFVec(C3D_FVec* out, const C3D_Mtx*
 	*out = Mtx_MultiplyFVec3(&transpose, *vector);
 }
 
+/**
+ * @brief Shorthand version of multiplying the rotation matrix from the C3D_Transform with the vector, relative to the C3D_Transform position.
+ * @param[out]    out           The resulting C3D_FVec vector.
+ * @param[in]     transform     The C3D_Transform object to work with.
+ * @param[in]     vector        The C3D_FVec vector relative to the C3D_Transform object's position.
+ */
 static inline void Transform_MultiplyTransformFVec(C3D_FVec* out, const C3D_Transform* transform, const C3D_FVec* vector)
 {
 	Transform_MultiplyTransposeFVec(out, &transform->rotation, &(FVec3_Subtract(*vector, transform->position)));
 }
 
+/**************************************************
+ * Box Helper Functions.
+ **************************************************/
+
 /**
- * Extent: Half-extents, or the half size of a full axis-aligned bounding box volume. Center of the box, plus half width/height/depth.
- *         Extents as in, you have vec3 and the real position of the box is -vec3 (AABB.min) and +vec3 (AABB.max).
- *         RandyGaul: "Extent, as in the extent of each OBB axis."
+ * @note Extent: Half-extents, or the half size of a full axis-aligned bounding box volume. Center of the box, plus half width/height/depth.
+ *       Extents as in, you have vec3 and the real position of the box is -vec3 (AABB.min) and +vec3 (AABB.max).
+ *       RandyGaul: "Extent, as in the extent of each OBB axis."
  */
 typedef struct C3D_Box 
 {
