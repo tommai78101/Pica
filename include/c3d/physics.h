@@ -2,6 +2,7 @@
 #include "types.h"
 #include "maths.h"
 #include <3ds.h>
+#include <float.h>
 #include <stdbool.h>
 #include <assert.h>
 
@@ -323,8 +324,41 @@ typedef struct C3D_MassData
 typedef struct C3D_Transform 
 {
 	C3D_FVec position;
-	C3D_FQuat rotation;
+	C3D_Mtx rotation;
 } C3D_Transform;
+
+static inline void Transform_Copy(C3D_Transform* out, C3D_Transform* in)
+{
+	*out = *in;
+}
+
+static inline void Transform_Multiply(C3D_Transform* out, const C3D_Transform* lhs, const C3D_Transform* rhs)
+{
+	C3D_Transform temp;
+	if (out == lhs || out == rhs)
+	{
+		Transform_Multiply(&temp, lhs, rhs);
+		Transform_Copy(out, &temp);
+		return;
+	}
+	Mtx_Multiply(&temp.rotation, &lhs->rotation, &rhs->rotation);
+	temp.position = FVec3_Add(Mtx_MultiplyFVec3(&temp.rotation, rhs->position), lhs->position);
+	temp.position.w = 1.0f;
+	Transform_Copy(out, &temp);
+}
+
+static inline void Transform_MultiplyTransposeFVec(C3D_FVec* out, const C3D_Mtx* rotationMatrix, const C3D_FVec* vector)
+{
+	C3D_Mtx transpose;
+	Mtx_Copy(&transpose, rotationMatrix);
+	Mtx_Transpose(&transpose);
+	*out = Mtx_MultiplyFVec3(&transpose, *vector);
+}
+
+static inline void Transform_MultiplyTransformFVec(C3D_FVec* out, const C3D_Transform* transform, const C3D_FVec* vector)
+{
+	Transform_MultiplyTransposeFVec(out, &transform->rotation, &(FVec3_Subtract(*vector, transform->position)));
+}
 
 /**
  * Extent: Half-extents, or the half size of a full axis-aligned bounding box volume. Center of the box, plus half width/height/depth.
@@ -337,7 +371,94 @@ typedef struct C3D_Box
 	C3D_FVec extent; 
 	struct C3D_Box* next;
 	struct C3D_Body* body;
+	float friction;
+	float restitution;
+	float density;
+	unsigned int broadPhaseIndex;
+	void* userData;
+	bool sensor;
 } C3D_Box;
+
+/**
+ * @brief Sets user data. Because this is C, you can directly manipulate user data from the C3D_Box object, if you choose so.
+ * @note Possibly not needed at all.
+ * @param[in,out]     box          The resulting C3D_Box object to store the user data.
+ * @param[in]         ptrData      Pointer to the user data store in C3D_Box object.
+ */
+static inline void Box_SetUserData(const C3D_Box* box, const void* ptrData)
+{
+	box->userData = ptrData;
+}
+
+/**
+ * @brief Gets user data. Because this is C, you can directly access user data from the C3D_Box object, if you choose so.
+ * @note Possibly not needed at all.
+ * @param[in]     box       The resulting C3D_Box object to access the user data.
+ * @return Pointer to the user data from the C3D_Box object.
+ */
+static inline void* Box_GetUserData(const C3D_Box* box)
+{
+	return box->userData;
+}
+
+/**
+ * @brief Sets the C3D_Box object sensor flag.
+ * @note Possibly not needed at all.
+ * @param[in,out]     box      The resulting C3D_Box object.
+ * @param[in]         flag     The new sensor flag value.
+ */
+static inline void Box_SetSensorFlag(const C3D_Box* box, const bool flag)
+{
+	box->sensor = flag;
+}
+
+/**
+ * @brief Cast a ray
+ * TODO: Check to see what this function really does.
+ */
+bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* raycastData)
+{
+	C3D_Transform worldTransform;
+	Transform_Multiply(&worldTransform, transform, &box->localTransform);
+	C3D_FVec direction;
+	Transform_MultiplyTransposeFVec(&direction, &worldTransform.rotation, &raycastData->direction);
+	C3D_FVec position;
+	Transform_MultiplyTransformFVec(&position, &worldTransform, &raycastData->rayOrigin);
+	float minimumTime = 0.0f;
+	float maximumTime = raycastData->endPointTime;
+	float time0Value;  //Point at t = 0 (unit)
+	float time1Value;  //Point at t = 1 (unit)
+	C3D_FVec normal0;
+	for (int i = 3; i > 0; i--)
+	{
+		//C3D_FVec is structured as WZYX, so the index goes from 3 -> 2 -> 1 -> break.
+		if (fabsf(direction.c[i]) < FLT_EPSILON)
+			if (position[i] < -box->extent[i] || position[i] > box->extent[i])
+				return false;
+		else 
+		{
+			float inverseDirection = 1.0f / direction[i];
+			float sign = (direction[i] >= 0.0f ? 1.0f : -1.0f);
+			float extentValue = box->extent[i] * sign;
+			C3D_FVec normal = {};
+			normal[i] = -sign;
+			
+			time0Value = -(extentValue + position[i]) * inverseDirection;
+			time1Value = (extentValue - position[i]) * inverseDirection;
+			if (time0Value > minimumTime)
+			{
+				normal0 = normal;
+				minimumTime = time0Value;
+			}
+			maximumTime = (maximumTime < time1Value ? maximumTime : time1Value);
+			if (minimumTime > maximumTime)
+				return false;
+		}
+	}
+	raycastData->normal = Mtx_MultiplyFVec3(&worldTransform.rotation, normal0);
+	raycastData->timeOfImpact = minimumTime;
+	return true;
+}
 
 /**************************************************
  * Physics Body Functions.
