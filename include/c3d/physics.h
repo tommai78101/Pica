@@ -427,38 +427,38 @@ typedef struct C3D_Box
 	bool sensor;
 } C3D_Box;
 
-///**
-// * @brief Sets user data. Because this is C, you can directly manipulate user data from the C3D_Box object, if you choose so.
-// * @note Possibly not needed at all.
-// * @param[in,out]     box          The resulting C3D_Box object to store the user data.
-// * @param[in]         ptrData      Pointer to the user data store in C3D_Box object.
-// */
-//static inline void Box_SetUserData(const C3D_Box* box, const void* ptrData)
-//{
-//	box->userData = ptrData;
-//}
-//
-///**
-// * @brief Gets user data. Because this is C, you can directly access user data from the C3D_Box object, if you choose so.
-// * @note Possibly not needed at all.
-// * @param[in]     box       The resulting C3D_Box object to access the user data.
-// * @return Pointer to the user data from the C3D_Box object.
-// */
-//static inline void* Box_GetUserData(const C3D_Box* box)
-//{
-//	return box->userData;
-//}
-//
-///**
-// * @brief Sets the C3D_Box object sensor flag.
-// * @note Possibly not needed at all.
-// * @param[in,out]     box      The resulting C3D_Box object.
-// * @param[in]         flag     The new sensor flag value.
-// */
-//static inline void Box_SetSensorFlag(const C3D_Box* box, const bool flag)
-//{
-//	box->sensor = flag;
-//}
+/**
+ * @brief Sets user data. Because this is C, you can directly manipulate user data from the C3D_Box object, if you choose so.
+ * @note Possibly not needed at all.
+ * @param[in,out]     box          The resulting C3D_Box object to store the user data.
+ * @param[in]         ptrData      Pointer to the user data store in C3D_Box object.
+ */
+static inline void Box_SetUserData(C3D_Box* box, void* ptrData)
+{
+	box->userData = ptrData;
+}
+
+/**
+ * @brief Gets user data. Because this is C, you can directly access user data from the C3D_Box object, if you choose so.
+ * @note Possibly not needed at all.
+ * @param[in]     box       The resulting C3D_Box object to access the user data.
+ * @return Pointer to the user data from the C3D_Box object.
+ */
+static inline void* Box_GetUserData(C3D_Box* box)
+{
+	return box->userData;
+}
+
+/**
+ * @brief Sets the C3D_Box object sensor flag.
+ * @note Possibly not needed at all.
+ * @param[in,out]     box      The resulting C3D_Box object.
+ * @param[in]         flag     The new sensor flag value.
+ */
+static inline void Box_SetSensorFlag(C3D_Box* box, bool flag)
+{
+	box->sensor = flag;
+}
 
 /**
  * @brief Cast a ray
