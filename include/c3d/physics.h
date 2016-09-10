@@ -6,11 +6,29 @@
 #include <stdbool.h>
 #include <assert.h>
 
-typedef struct C3D_AABB 
-{
-	C3D_FVec min;
-	C3D_FVec max;
-} C3D_AABB;
+/**************************************************
+ * Common Non-Standard Citro3D Functions 
+ **************************************************/
+
+/**
+ * @brief Obtain the smaller C3D_FVec vector of the given 2 C3D_FVec vectors.
+ * @param[in]    lhs      C3D_FVec vector to compare.
+ * @param[in]    rhs      C3D_FVec vector to compare.
+ * @return The smallest C3D_FVec vector.
+ */
+C3D_FVec FVec3_Min(C3D_FVec lhs, C3D_FVec rhs);
+
+/**
+ * @brief See: http://box2d.org/2014/02/computing-a-basis/
+ * @param[in]   a   A unit vector.
+ * @param[out]  b   A unit vector perpendicular to unit vector, "a".
+ * @param[out]  c   A unit vector perpendicular to unit vectors, "a" and "b".
+ */ 
+void FVec3_ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
+
+/**************************************************
+ * Basic Structures 
+ **************************************************/
 
 typedef struct C3D_HalfSpace 
 {
@@ -30,6 +48,12 @@ typedef struct C3D_RaycastData
 /**************************************************
  * AABB Box Collision Helper Functions 
  **************************************************/
+
+typedef struct C3D_AABB 
+{
+	C3D_FVec min;
+	C3D_FVec max;
+} C3D_AABB;
 
 /**
  * @brief Checks if inner AABB box is within the outer AABB box.
@@ -69,14 +93,6 @@ void AABB_Combine(C3D_AABB* out, const C3D_AABB* a, const C3D_AABB* b);
  * @return True if both boxes intersect each other. False, if otherwise.
  */
 bool AABB_CollidesAABB(const C3D_AABB* a, const C3D_AABB* b);
-
-/**
- * @brief See: http://box2d.org/2014/02/computing-a-basis/
- * @param[in]   a   A unit vector.
- * @param[out]  b   A unit vector perpendicular to unit vector, "a".
- * @param[out]  c   A unit vector perpendicular to unit vectors, "a" and "b".
- */ 
-void ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
 
 /**************************************************
  * Raycasting Helper Functions
@@ -384,7 +400,8 @@ static inline void Transform_MultiplyTransposeFVec(C3D_FVec* out, const C3D_Mtx*
  */
 static inline void Transform_MultiplyTransformFVec(C3D_FVec* out, const C3D_Transform* transform, const C3D_FVec* vector)
 {
-	Transform_MultiplyTransposeFVec(out, &transform->rotation, &(FVec3_Subtract(*vector, transform->position)));
+	C3D_FVec difference = FVec3_Subtract(*vector, transform->position);
+	Transform_MultiplyTransposeFVec(out, &transform->rotation, &difference);
 }
 
 /**************************************************
@@ -410,38 +427,38 @@ typedef struct C3D_Box
 	bool sensor;
 } C3D_Box;
 
-/**
- * @brief Sets user data. Because this is C, you can directly manipulate user data from the C3D_Box object, if you choose so.
- * @note Possibly not needed at all.
- * @param[in,out]     box          The resulting C3D_Box object to store the user data.
- * @param[in]         ptrData      Pointer to the user data store in C3D_Box object.
- */
-static inline void Box_SetUserData(const C3D_Box* box, const void* ptrData)
-{
-	box->userData = ptrData;
-}
-
-/**
- * @brief Gets user data. Because this is C, you can directly access user data from the C3D_Box object, if you choose so.
- * @note Possibly not needed at all.
- * @param[in]     box       The resulting C3D_Box object to access the user data.
- * @return Pointer to the user data from the C3D_Box object.
- */
-static inline void* Box_GetUserData(const C3D_Box* box)
-{
-	return box->userData;
-}
-
-/**
- * @brief Sets the C3D_Box object sensor flag.
- * @note Possibly not needed at all.
- * @param[in,out]     box      The resulting C3D_Box object.
- * @param[in]         flag     The new sensor flag value.
- */
-static inline void Box_SetSensorFlag(const C3D_Box* box, const bool flag)
-{
-	box->sensor = flag;
-}
+///**
+// * @brief Sets user data. Because this is C, you can directly manipulate user data from the C3D_Box object, if you choose so.
+// * @note Possibly not needed at all.
+// * @param[in,out]     box          The resulting C3D_Box object to store the user data.
+// * @param[in]         ptrData      Pointer to the user data store in C3D_Box object.
+// */
+//static inline void Box_SetUserData(const C3D_Box* box, const void* ptrData)
+//{
+//	box->userData = ptrData;
+//}
+//
+///**
+// * @brief Gets user data. Because this is C, you can directly access user data from the C3D_Box object, if you choose so.
+// * @note Possibly not needed at all.
+// * @param[in]     box       The resulting C3D_Box object to access the user data.
+// * @return Pointer to the user data from the C3D_Box object.
+// */
+//static inline void* Box_GetUserData(const C3D_Box* box)
+//{
+//	return box->userData;
+//}
+//
+///**
+// * @brief Sets the C3D_Box object sensor flag.
+// * @note Possibly not needed at all.
+// * @param[in,out]     box      The resulting C3D_Box object.
+// * @param[in]         flag     The new sensor flag value.
+// */
+//static inline void Box_SetSensorFlag(const C3D_Box* box, const bool flag)
+//{
+//	box->sensor = flag;
+//}
 
 /**
  * @brief Cast a ray
@@ -464,18 +481,20 @@ bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* 
 	{
 		//C3D_FVec is structured as WZYX, so the index goes from 3 -> 2 -> 1 -> break.
 		if (fabsf(direction.c[i]) < FLT_EPSILON)
-			if (position[i] < -box->extent[i] || position[i] > box->extent[i])
+		{
+			if (position.c[i] < -box->extent.c[i] || position.c[i] > box->extent.c[i])
 				return false;
+		}
 		else 
 		{
-			float inverseDirection = 1.0f / direction[i];
-			float sign = (direction[i] >= 0.0f ? 1.0f : -1.0f);
-			float extentValue = box->extent[i] * sign;
+			float inverseDirection = 1.0f / direction.c[i];
+			float sign = (direction.c[i] >= 0.0f ? 1.0f : -1.0f);
+			float extentValue = box->extent.c[i] * sign;
 			C3D_FVec normal = {};
-			normal[i] = -sign;
+			normal.c[i] = -sign;
 			
-			time0Value = -(extentValue + position[i]) * inverseDirection;
-			time1Value = (extentValue - position[i]) * inverseDirection;
+			time0Value = -(extentValue + position.c[i]) * inverseDirection;
+			time1Value = (extentValue - position.c[i]) * inverseDirection;
 			if (time0Value > minimumTime)
 			{
 				normal0 = normal;
@@ -489,6 +508,34 @@ bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* 
 	raycastData->normal = Mtx_MultiplyFVec3(&worldTransform.rotation, normal0);
 	raycastData->timeOfImpact = minimumTime;
 	return true;
+}
+
+void Box_ComputeAABB(C3D_Box* box, const C3D_Transform* transform, C3D_AABB* aabb)
+{
+	C3D_Transform worldTransform;
+	Transform_Multiply(&worldTransform, transform, &box->localTransform);
+	C3D_FVec vectors[8] = 
+	{
+		FVec3_New(-box->extent.x, -box->extent.y, -box->extent.z),
+		FVec3_New(-box->extent.x, -box->extent.y,  box->extent.z),
+		FVec3_New(-box->extent.x,  box->extent.y, -box->extent.z),
+		FVec3_New(-box->extent.x,  box->extent.y,  box->extent.z),
+		FVec3_New( box->extent.x, -box->extent.y, -box->extent.z),
+		FVec3_New( box->extent.x, -box->extent.y,  box->extent.z),
+		FVec3_New( box->extent.x,  box->extent.y, -box->extent.z),
+		FVec3_New( box->extent.x,  box->extent.y,  box->extent.z)
+	};
+	for (int i = 0; i < 8; i++)
+		Transform_MultiplyTransformFVec((vectors + i), &worldTransform, (vectors + i));
+	C3D_FVec minimum = FVec3_New(FLT_MAX, FLT_MAX, FLT_MAX);
+	C3D_FVec maximum = FVec3_New(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	for (int i = 0; i < 8; i++)
+	{
+		minimum = FVec3_Min(minimum, vectors[i]);
+		maximum = FVec3_Min(maximum, vectors[i]);
+	}
+	aabb->min = minimum;
+	aabb->max = maximum;
 }
 
 /**************************************************
