@@ -463,6 +463,7 @@ static inline void Box_SetSensorFlag(C3D_Box* box, bool flag)
 /**
  * @brief Cast a ray
  * TODO: Check to see what this function really does.
+ * @note Randy Gaul: It [Box_Raycast()] transforms "ray to OBB" into "ray to AABB", which is a simpler problem to solve.
  */
 bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* raycastData)
 {
