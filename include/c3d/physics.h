@@ -574,15 +574,34 @@ void Box_ComputeMass(C3D_MassData* out, C3D_Box* box)
 	float newX = (1.0f / 12.0f) * mass * (squaredExtentY + squaredExtentZ);
 	float newY = (1.0f / 12.0f) * mass * (squaredExtentX + squaredExtentZ);
 	float newZ = (1.0f / 12.0f) * mass * (squaredExtentX + squaredExtentY);
+	
 	C3D_Mtx inertiaMatrix;
 	Mtx_Diagonal(&inertiaMatrix, newX, newY, newZ, 1.0f);
+	
 	C3D_Mtx transposedRotationMatrix;
 	Mtx_Copy(&transposedRotationMatrix, &box->localTransform.rotation);
 	Mtx_Transpose(&transposedRotationMatrix);
+	
 	C3D_Mtx temp;
 	Mtx_Multiply(&temp, &inertiaMatrix, &transposedRotationMatrix);
 	Mtx_Multiply(&inertiaMatrix, &box->localTransform.rotation, &temp);
-	Mtx_Add(&temp, &temp, &temp);
+	
+	C3D_Mtx identity;
+	Mtx_Identity(&identity);
+	
+	float dotPosition = FVec3_Dot(box->localTransform.position, box->localTransform.position);
+	Mtx_Scale(&identity, dotPosition, dotPosition, dotPosition);
+	
+	C3D_Mtx outerProduct;
+	Mtx_OuterProduct(&outerProduct, &box->localTransform.position, &box->localTransform.position);
+	
+	Mtx_Subtract(&temp, &identity, &outerProduct);
+	Mtx_Scale(&temp, mass, mass, mass);
+	Mtx_Add(&inertiaMatrix, &inertiaMatrix, &temp);
+	
+	out->center = box->localTransform.position;
+	Mtx_Copy(&out->inertia, &inertiaMatrix);
+	out->mass = mass;
 }
 
 /**************************************************
