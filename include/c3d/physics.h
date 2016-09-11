@@ -34,6 +34,16 @@ C3D_FVec FVec3_Max(C3D_FVec lhs, C3D_FVec rhs);
  */ 
 void FVec3_ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
 
+/**
+ * @brief Create a C3D_Mtx matrix with the given diagonal.
+ * @param[in,out]     out      The resulting C3D_Mtx to insert the diagonal into.
+ * @param[in]         x        The first diagonal.
+ * @param[in]         y        The second diagonal.
+ * @param[in]         z        The third diagonal.
+ * @param[in]         w        The fourth diagonal.
+ */
+void Mtx_Diagonal(C3D_Mtx* out, float x, float y, float z, float w);
+
 /**************************************************
  * Basic Structures 
  **************************************************/
@@ -551,6 +561,24 @@ void Box_ComputeAABB(C3D_AABB* aabb, C3D_Box* box, const C3D_Transform* transfor
 	}
 	aabb->min = minimum;
 	aabb->max = maximum;
+}
+
+/**
+ * @brief Using the given C3D_Box data, compute and obtain the mass.
+ * 
+ */
+void Box_ComputeMass(C3D_MassData* out, C3D_Box* box)
+{
+	float squaredExtentX = 4.0f * box->extent.x * box->extent.x;
+	float squaredExtentY = 4.0f * box->extent.y * box->extent.y;
+	float squaredExtentZ = 4.0f * box->extent.z * box->extent.z;
+	float mass = 8.0f * box->extent.x * box->extent.y * box->extent.z * box->density;
+	float newX = (1.0f / 12.0f) * mass * (squaredExtentY + squaredExtentZ);
+	float newY = (1.0f / 12.0f) * mass * (squaredExtentX + squaredExtentZ);
+	float newZ = (1.0f / 12.0f) * mass * (squaredExtentX + squaredExtentY);
+	C3D_Mtx inertiaMatrix;
+	Mtx_Diagonal(&inertiaMatrix, newX, newY, newZ, 1.0f);
+	//TODO: To be continued.
 }
 
 /**************************************************
