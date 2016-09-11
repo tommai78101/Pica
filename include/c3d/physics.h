@@ -34,6 +34,14 @@ C3D_FVec FVec3_Max(C3D_FVec lhs, C3D_FVec rhs);
  */ 
 void FVec3_ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
 
+/**
+ * @brief Creates a C3D_Mtx containing the outer product of C3D_FVec vectors, lhs and rhs.
+ * @param[out]   out     The resulting C3D_Mtx matrix.
+ * @param[in]    lhs     The first C3D_FVec vector.
+ * @param[in]    rhs     The second C3D_FVec vector.
+ */
+void Mtx_OuterProduct(C3D_Mtx* out, C3D_FVec* lhs, C3D_FVec* rhs);
+
 /**************************************************
  * Basic Structures 
  **************************************************/
@@ -568,7 +576,13 @@ void Box_ComputeMass(C3D_MassData* out, C3D_Box* box)
 	float newZ = (1.0f / 12.0f) * mass * (squaredExtentX + squaredExtentY);
 	C3D_Mtx inertiaMatrix;
 	Mtx_Diagonal(&inertiaMatrix, newX, newY, newZ, 1.0f);
-	//TODO: To be continued.
+	C3D_Mtx transposedRotationMatrix;
+	Mtx_Copy(&transposedRotationMatrix, &box->localTransform.rotation);
+	Mtx_Transpose(&transposedRotationMatrix);
+	C3D_Mtx temp;
+	Mtx_Multiply(&temp, &inertiaMatrix, &transposedRotationMatrix);
+	Mtx_Multiply(&inertiaMatrix, &box->localTransform.rotation, &temp);
+	Mtx_Add(&temp, &temp, &temp);
 }
 
 /**************************************************
