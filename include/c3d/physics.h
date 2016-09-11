@@ -19,6 +19,14 @@
 C3D_FVec FVec3_Min(C3D_FVec lhs, C3D_FVec rhs);
 
 /**
+ * @brief Obtain the larger C3D_FVec vector of the given 2 C3D_FVec vectors.
+ * @param[in]    lhs      C3D_FVec vector to compare.
+ * @param[in]    rhs      C3D_FVec vector to compare.
+ * @return The largest C3D_FVec vector.
+ */
+C3D_FVec FVec3_Max(C3D_FVec lhs, C3D_FVec rhs);
+
+/**
  * @brief See: http://box2d.org/2014/02/computing-a-basis/
  * @param[in]   a   A unit vector.
  * @param[out]  b   A unit vector perpendicular to unit vector, "a".
@@ -539,7 +547,7 @@ void Box_ComputeAABB(C3D_AABB* aabb, C3D_Box* box, const C3D_Transform* transfor
 	for (int i = 0; i < 8; i++)
 	{
 		minimum = FVec3_Min(minimum, vectors[i]);
-		maximum = FVec3_Min(maximum, vectors[i]);
+		maximum = FVec3_Max(maximum, vectors[i]);
 	}
 	aabb->min = minimum;
 	aabb->max = maximum;
