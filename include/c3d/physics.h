@@ -511,7 +511,13 @@ bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* 
 	return true;
 }
 
-void Box_ComputeAABB(C3D_Box* box, const C3D_Transform* transform, C3D_AABB* aabb)
+/**
+ * @brief Using the given C3D_Box object data, create a C3D_AABB object that encapsulate the C3D_Box data.
+ * @param[out]     aabb           The resulting C3D_AABB object from the C3D_Box data.
+ * @param[in]      box            The C3D_Box object to derive C3D_AABB object from.
+ * @param[in]      transform      The C3D_Transform object's transform properties to convert from local transform space to world transform space.
+ */
+void Box_ComputeAABB(C3D_AABB* aabb, C3D_Box* box, const C3D_Transform* transform)
 {
 	C3D_Transform worldTransform;
 	Transform_Multiply(&worldTransform, transform, &box->localTransform);
