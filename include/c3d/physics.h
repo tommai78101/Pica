@@ -34,16 +34,6 @@ C3D_FVec FVec3_Max(C3D_FVec lhs, C3D_FVec rhs);
  */ 
 void FVec3_ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
 
-/**
- * @brief Create a C3D_Mtx matrix with the given diagonal.
- * @param[in,out]     out      The resulting C3D_Mtx to insert the diagonal into.
- * @param[in]         x        The first diagonal.
- * @param[in]         y        The second diagonal.
- * @param[in]         z        The third diagonal.
- * @param[in]         w        The fourth diagonal.
- */
-void Mtx_Diagonal(C3D_Mtx* out, float x, float y, float z, float w);
-
 /**************************************************
  * Basic Structures 
  **************************************************/
