@@ -1,7 +1,7 @@
 #pragma once
+#include <3ds.h>
 #include "types.h"
 #include "maths.h"
-#include <3ds.h>
 #include <float.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -563,7 +563,8 @@ void Box_ComputeAABB(C3D_AABB* aabb, C3D_Box* box, const C3D_Transform* transfor
 
 /**
  * @brief Using the given C3D_Box data, compute and obtain the mass.
- * 
+ * @param[out]   out     The resulting C3D_MassData object.
+ * @param[in]    box     The C3D_Box data to compute.
  */
 void Box_ComputeMass(C3D_MassData* out, C3D_Box* box)
 {

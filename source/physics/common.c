@@ -15,7 +15,7 @@ void Mtx_OuterProduct(C3D_Mtx* out, C3D_FVec* lhs, C3D_FVec* rhs)
 	C3D_FVec a = FVec3_Scale(*rhs, lhs->x);
 	C3D_FVec b = FVec3_Scale(*rhs, lhs->y);
 	C3D_FVec c = FVec3_Scale(*rhs, lhs->z);
-	Mtx_Zero(out);
+	Mtx_Zeros(out);
 	out->r[0].x = a.x;
 	out->r[0].y = a.y;
 	out->r[0].z = a.z;
