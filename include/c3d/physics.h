@@ -110,6 +110,18 @@ void AABB_Combine(C3D_AABB* out, const C3D_AABB* a, const C3D_AABB* b);
  */
 bool AABB_CollidesAABB(const C3D_AABB* a, const C3D_AABB* b);
 
+/**
+ * @brief Increase the AABB boundaries by 0.5F.
+ * @param[in,out]    aabb    C3D_AABB object to fatten.
+ */
+static inline void AABB_FattenAABB(C3D_AABB* aabb)
+{
+	const float fattener = 0.5f;
+	C3D_FVec fatVector = FVec3_New(fattener, fattener, fattener);
+	aabb->min = FVec3_Subtract(aabb->min, fatVector);
+	aabb->max = FVec3_Add(aabb->max, fatVector);
+}
+
 /**************************************************
  * Raycasting Helper Functions
  **************************************************/
@@ -449,7 +461,7 @@ typedef struct C3D_Box
  * @param[in,out]     box          The resulting C3D_Box object to store the user data.
  * @param[in]         ptrData      Pointer to the user data store in C3D_Box object.
  */
-static inline void Box_SetUserData(C3D_Box* box, void* ptrData)
+static inline void Box_SetUserData(C3D_Box* const box, void* ptrData)
 {
 	box->userData = ptrData;
 }
@@ -460,7 +472,7 @@ static inline void Box_SetUserData(C3D_Box* box, void* ptrData)
  * @param[in]     box       The resulting C3D_Box object to access the user data.
  * @return Pointer to the user data from the C3D_Box object.
  */
-static inline void* Box_GetUserData(C3D_Box* box)
+static inline void* Box_GetUserData(C3D_Box* const box)
 {
 	return box->userData;
 }
@@ -471,7 +483,7 @@ static inline void* Box_GetUserData(C3D_Box* box)
  * @param[in,out]     box      The resulting C3D_Box object.
  * @param[in]         flag     The new sensor flag value.
  */
-static inline void Box_SetSensorFlag(C3D_Box* box, bool flag)
+static inline void Box_SetSensorFlag(C3D_Box* const box, bool flag)
 {
 	box->sensor = flag;
 }
@@ -481,7 +493,7 @@ static inline void Box_SetSensorFlag(C3D_Box* box, bool flag)
  * TODO: Check to see what this function really does.
  * @note Randy Gaul: The entire function performs box to ray and finds the hit point. Using the transpose lets one solve ray to AABB and still get the correct results. Ray to AABB is easier than ray to OBB.
  */
-bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* raycastData);
+bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* const raycastData);
 
 /**
  * @brief Using the given C3D_Box object data, create a C3D_AABB object that encapsulate the C3D_Box data.
@@ -489,14 +501,14 @@ bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* 
  * @param[in]      box            The C3D_Box object to derive C3D_AABB object from.
  * @param[in]      transform      The C3D_Transform object's transform properties to convert from local transform space to world transform space.
  */
-void Box_ComputeAABB(C3D_AABB* aabb, C3D_Box* box, const C3D_Transform* transform);
+void Box_ComputeAABB(C3D_AABB* const aabb, C3D_Box* const box, const C3D_Transform* transform);
 
 /**
  * @brief Using the given C3D_Box data, compute and obtain the mass.
  * @param[out]   out     The resulting C3D_MassData object.
  * @param[in]    box     The C3D_Box data to compute.
  */
-void Box_ComputeMass(C3D_MassData* out, C3D_Box* box);
+void Box_ComputeMass(C3D_MassData* const out, C3D_Box* const box);
 
 /**************************************************
  * Contact Manager Functions
@@ -504,39 +516,15 @@ void Box_ComputeMass(C3D_MassData* out, C3D_Box* box);
 
 typedef struct C3D_ContactManager 
 {
-	
+	//TODO: Add the contents to this manager. 
 } C3D_ContactManager;
 
 /**************************************************
- * Broadphase
+ * Dynamic AABB Tree Node Functions
  **************************************************/
-
-typedef struct C3D_ContactPair 
-{
-	unsigned int A;
-	unsigned int B;
-} C3D_ContactPair;
-
-typedef struct C3D_BroadPhase 
-{
-	C3D_ContactManager* contactManager;
-	C3D_ContactPair* pairBuffer;
-	unsigned int pairCount;
-	unsigned int pairCapacity;
-	unsigned int* moveBuffer;
-	unsigned int moveCount;
-	unsigned int moveCapacity;
-} C3D_BroadPhase;
-
-void Broadphase_Init(C3D_BroadPhase* out, C3D_ContactManager* contactManager)
-{
-	
-}
-
-/**************************************************
- * Dynamic AABB Tree Functions
- **************************************************/
-
+/**
+ * @brief Only used for Dynamic AABB Tree objects and related nodes.
+ */
 static const int TREENODE_NULL = -1;
 
 typedef struct C3D_DynamicAABBTreeNode 
@@ -544,26 +532,156 @@ typedef struct C3D_DynamicAABBTreeNode
 	C3D_AABB aabb;
 	union 
 	{
-		unsigned int parent;
-		unsigned int next;
+		int parent;
+		int next;
 	};
 	struct 
 	{
-		unsigned int left;
-		unsigned int right;
+		int left;
+		int right;
 	};
 	void* userData;
-	unsigned int height;
+	int height;
 } C3D_DynamicAABBTreeNode;
+
+/**
+ * @brief Checks to see if the node is a leaf in the C3D_DynamicAABBTree data structure.
+ * @param[in]    node     C3D_DynamicAABBTreeNode object to check.
+ * @return True if it is a leaf. False, if it is a parent.
+ */
+static inline bool TreeNode_IsLeaf(const C3D_DynamicAABBTreeNode* const node)
+{
+	return (node->right == TREENODE_NULL);
+}
+
+/**************************************************
+ * Dynamic AABB Tree Functions
+ **************************************************/
 
 typedef struct C3D_DynamicAABBTree 
 {
-	unsigned int root;
+	int root;
 	C3D_DynamicAABBTreeNode* nodes;
 	unsigned int count;
 	unsigned int capacity;
-	unsigned int freeList;
+	int freeList;
 } C3D_DynamicAABBTree;
+
+/**
+ * @brief Adds the index to the list of free C3D_DynamicAABBTreeNode objects available for use. This means the C3D_DynamicAABBTreeNode object and subsequent nodes will be cleared away.
+ * @param[in,out]     tree     The resulting C3D_DynamicAABBTree object to clear the nodes in.
+ * @param[in]         index    The C3D_DynamicAABBTreeNode object's node ID to start freeing from. Subsequent nodes will be cleared away thereafter.
+ */
+void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, int index);
+
+/**
+ * @brief Allocates a new node. If there are available free nodes to use, it will allocate from that list of free nodes to choose from. If there aren't any, it will allocate new ones on the memory.
+ * @param[in,out]     tree      The resulting C3D_DynamicAABBTree to allocate new C3D_DynamicAABBTreeNode object nodes to.
+ * @return The node index (ID) of the last allocated C3D_DynamicAABBTreeNode object.
+ */
+int Tree_AllocateNode(C3D_DynamicAABBTree* tree);
+
+/**
+ * @brief Balances the tree so the tree contains C3D_DynamicAABBTreeNode objects where the tree does not have a height difference of more than 1. 
+ * @note: The following diagram shows how where the indices are (indexA = A, indexB = B, and so on).
+ *            A
+ *          /   \
+ *         B     C
+ *        / \   / \
+ *       D   E F   G
+ * @param[in,out]       tree       The resulting C3D_DynamicAABBTree object to balance.
+ * @param[in]           indexA     The starting C3D_DynamicAABBTreeNode node, where the balancing starts from.
+ * @return The C3D_DynamicAABBTreeNode parent node that is balanced from indexA. If indexA is the parent node whose children is balanced, then indexA will be returned.
+ */
+int Tree_Balance(C3D_DynamicAABBTree* tree, int indexA);
+
+/**
+ * @brief Balances all C3D_DynamicAABBTreeNode nodes in the C3D_DynamicAABBTree tree.
+ * @param[in,out]       tree        The resulting C3D_DynamicAABBTree object with all balanced C3D_DynamicAABBTree nodes, starting from the index.
+ * @param[in]           index       The starting C3D_DynamicAABBTreeNode node's index (ID) to begin balancing from.
+ */
+void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, int index);
+
+/**
+ * @brief Inserts a new C3D_DynamicAABBTreeNode leaf node at the C3D_DynamicAABBTreeNode node index (ID). In other words, inserts a child node at the parent node of node index ID.
+ * @param[in,out]      tree      The resulting C3D_DynamicAABBTree tree with the inserted C3D_DynamicAABBTreeNode node.
+ * @param[in]          id        The C3D_DynamicAABBTreeNode node index value to insert the leaf node at, setting the given C3D_DynamicAABBTreeNode node as the parent node.
+ */
+void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, int id);
+
+/**
+ * @brief Initializes the C3D_DynamicAABBTree object.
+ * @param[in,out]      tree         The resulting C3D_DynamicAABBTree tree object.
+ */
+void Tree_Init(C3D_DynamicAABBTree* tree);
+
+/**
+ * @brief Deinitializes the C3D_DynamicAABBTree tree object.
+ * @param[in,out]     tree      The resulting C3D_DynamicAABBTree tree object to be released.
+ */
+void Tree_Free(C3D_DynamicAABBTree* tree);
+
+/**
+ * @brief Inserts a new C3D_DynamicAABBTreeNode node object containing the C3D_AABB object and its user data.
+ * @param[in,out]        tree      The resulting C3D_DynamicAABBTree tree object.
+ * @param[in]            aabb      The C3D_AABB object for the new C3D_DynamicAABBTreeNode node.
+ * @param[in]            userData  The user data to insert into the new C3D_DynamicAABBTreeNode node.
+ */
+int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData);
+
+/**************************************************
+ * Broadphase
+ **************************************************/
+
+typedef struct C3D_ContactPair 
+{
+	int A;
+	int B;
+} C3D_ContactPair;
+
+typedef struct C3D_Broadphase 
+{
+	C3D_ContactManager* contactManager;
+	C3D_ContactPair* pairBuffer;
+	unsigned int pairCount;
+	unsigned int pairCapacity;
+	int* moveBuffer;
+	unsigned int moveCount;
+	unsigned int moveCapacity;
+	C3D_DynamicAABBTree tree;
+	unsigned int currentIndex;
+} C3D_Broadphase;
+
+/**
+ * @brief Initializes the C3D_Broadphase object.
+ * @param[in,out]   out                The resulting C3D_Broadphase object to initialize.
+ * @param[in]       contactManager     The C3D_ContactManager object to initialize with.
+ */
+void Broadphase_Init(C3D_Broadphase* out, C3D_ContactManager* const contactManager)
+{
+	out->contactManager = contactManager;
+	out->pairCount = 0;
+	out->pairCapacity = 64;
+	out->pairBuffer = (C3D_ContactPair*) linearAlloc(sizeof(C3D_ContactPair) * out->pairCapacity);
+	out->moveCount = 0;
+	out->moveCapacity = 64;
+	out->moveBuffer = (int*) linearAlloc(sizeof(unsigned int) * out->moveCapacity);
+}
+
+/**
+ * @brief Releases the C3D_Broadphase object.
+ * @param[in,out]     out      The resulting C3D_Broadphase object to release.
+ */
+void Broadphase_Free(C3D_Broadphase* out)
+{
+	linearFree(out->moveBuffer);
+	linearFree(out->pairBuffer);
+}
+
+void Broadphase_InsertBox(C3D_Broadphase* broadphase, C3D_Box* box, C3D_AABB* const aabb)
+{
+	//unsigned int id = 
+}
 
 /**************************************************
  * Physics Body Functions.

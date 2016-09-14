@@ -5,7 +5,7 @@
  * TODO: Check to see what this function really does.
  * @note Randy Gaul: The entire function performs box to ray and finds the hit point. Using the transpose lets one solve ray to AABB and still get the correct results. Ray to AABB is easier than ray to OBB.
  */
-bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* raycastData)
+bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* const raycastData)
 {
 	C3D_Transform worldTransform;
 	Transform_Multiply(&worldTransform, transform, &box->localTransform);
@@ -57,7 +57,7 @@ bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* 
  * @param[in]      box            The C3D_Box object to derive C3D_AABB object from.
  * @param[in]      transform      The C3D_Transform object's transform properties to convert from local transform space to world transform space.
  */
-void Box_ComputeAABB(C3D_AABB* aabb, C3D_Box* box, const C3D_Transform* transform)
+void Box_ComputeAABB(C3D_AABB* const aabb, C3D_Box* const box, const C3D_Transform* transform)
 {
 	C3D_Transform worldTransform;
 	Transform_Multiply(&worldTransform, transform, &box->localTransform);
@@ -90,7 +90,7 @@ void Box_ComputeAABB(C3D_AABB* aabb, C3D_Box* box, const C3D_Transform* transfor
  * @param[out]   out     The resulting C3D_MassData object.
  * @param[in]    box     The C3D_Box data to compute.
  */
-void Box_ComputeMass(C3D_MassData* out, C3D_Box* box)
+void Box_ComputeMass(C3D_MassData* const out, C3D_Box* const box)
 {
 	float squaredExtentX = 4.0f * box->extent.x * box->extent.x;
 	float squaredExtentY = 4.0f * box->extent.y * box->extent.y;
