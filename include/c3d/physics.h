@@ -5,6 +5,7 @@
 #include <float.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <stdlib.h>
 
 /**************************************************
  * Common Non-Standard Citro3D Functions 
@@ -581,6 +582,15 @@ void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, int index);
  */
 int Tree_AllocateNode(C3D_DynamicAABBTree* tree);
 
+void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, int index)
+{
+	assert(index >= 0 && index < tree->capacity);
+	tree->nodes[index].next = tree->freeList;
+	tree->nodes[index].height = TREENODE_NULL;
+	tree->freeList = index;
+	tree->count--;
+}
+
 /**
  * @brief Balances the tree so the tree contains C3D_DynamicAABBTreeNode objects where the tree does not have a height difference of more than 1. 
  * @note: The following diagram shows how where the indices are (indexA = A, indexB = B, and so on).
@@ -609,6 +619,37 @@ void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, int index);
  */
 void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, int id);
 
+void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, int id)
+{
+	if (id == tree->root)
+	{
+		tree->root = TREENODE_NULL;
+		return;
+	}
+	int parent = tree->nodes[id].parent;
+	int grandparent = tree->nodes[parent].right;
+	int sibling;
+	if (tree->nodes[parent].left == id)
+		sibling = tree->nodes[parent].right;
+	else
+		sibling = tree->nodes[parent].left;
+	if (grandparent != TREENODE_NULL)
+	{
+		if (tree->nodes[grandparent].left == parent)
+			tree->nodes[grandparent].left = sibling;
+		else
+			tree->nodes[grandparent].right = sibling;
+		tree->nodes[sibling].parent = grandparent;
+	}
+	else 
+	{
+		tree->root = sibling;
+		tree->nodes[sibling].parent = TREENODE_NULL;
+	}
+	Tree_DeallocateNode(tree, parent);
+	Tree_SyncHierarchy(tree, grandparent);
+}
+
 /**
  * @brief Initializes the C3D_DynamicAABBTree object.
  * @param[in,out]      tree         The resulting C3D_DynamicAABBTree tree object.
@@ -628,6 +669,47 @@ void Tree_Free(C3D_DynamicAABBTree* tree);
  * @param[in]            userData  The user data to insert into the new C3D_DynamicAABBTreeNode node.
  */
 int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData);
+
+void Tree_Remove(C3D_DynamicAABBTree* tree, int index)
+{
+	assert(index >= 0 && index < tree->capacity);
+	assert(TreeNode_IsLeaf(tree->nodes[index]));
+	Tree_RemoveLeaf(index);
+	Tree_DeallocateNode(index);
+}
+
+C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id) 
+{
+	assert(id >= 0 && id < tree->capacity);
+	return tree->nodes[id].aabb;
+}
+
+void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D_AABB* aabb)
+{
+	const int stackCapacity = 256;
+	int stack[stackCapacity];
+	int stackPointer = 1;
+	*stack = tree->root;
+	while (stackPointer)
+	{
+		assert(stackPointer < stackCapacity);
+		int id = stack[--stackPointer];
+		const C3D_DynamicAABBTreeNode* node = tree->nodes + id;
+		if (AABB_CollidesAABB(aabb, &node->aabb))
+		{
+			if (TreeNode_IsLeaf(node))
+			{
+				if (!Broadphase_TreeCallback(broadphase, id))
+					return;
+			}
+			else 
+			{
+				stack[stackPointer++] = node->left;
+				stack[stackPointer++] = node->right;
+			}
+		}
+	}
+}
 
 /**************************************************
  * Broadphase
@@ -678,9 +760,71 @@ void Broadphase_Free(C3D_Broadphase* out)
 	linearFree(out->pairBuffer);
 }
 
+void Broadphase_BufferMove(C3D_Broadphase* broadphase, int index)
+{
+	if (broadphase->moveCount == broadphase->moveCapacity)
+	{
+		int* oldBuffer = broadphase->moveBuffer;
+		broadphase->moveCapacity *= 2;
+		broadphase->moveBuffer = (int*) linearAlloc(sizeof(int) * broadphase->moveCapacity);
+		memcpy(broadphase->moveBuffer, oldBuffer, sizeof(int) * broadphase->moveCapacity);
+		linearFree(oldBuffer);
+	}
+	broadphase->moveBuffer[broadphase->moveCount++] = index;
+}
+
 void Broadphase_InsertBox(C3D_Broadphase* broadphase, C3D_Box* box, C3D_AABB* const aabb)
 {
-	//unsigned int id = 
+	int id = Tree_Insert(broadphase->tree, aabb, box);
+	box->broadPhaseIndex = id;
+	Broadphase_BufferMove(id);
+}
+
+void Broadphase_RemoveBox(C3D_Broadphase* broadphase, const C3D_Box* box)
+{
+	Tree_Remove(broadphase->tree, box->broadPhaseIndex);
+}
+
+bool Broadphase_ContactPairSort(const C3D_ContactPair* lhs, const C3D_ContactPair* rhs)
+{
+	if (lhs->A < rhs->A)
+		return true;
+	if (lhs->A == rhs->A)
+		return lhs->B < rhs->B;
+	return false;
+}
+
+bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index)
+{
+	if (index == broadphase->currentIndex)
+		return true;
+	if (broadphase->pairCount == broadphase->pairCapacity)
+	{
+		C3D_ContactPair* oldBuffer = broadphase->pairBuffer;
+		broadphase->pairCapacity *= 2;
+		broadphase->pairBuffer = (C3D_ContactPair*) linearAlloc(sizeof(C3D_ContactPair) * broadphase->pairCapacity);
+		memcpy(broadphase->pairBuffer, oldBuffer, sizeof(C3D_ContactPair) * broadphase->pairCount);
+		linearFree(oldBuffer);
+	}
+	int indexA = index < broadphase->currentIndex ? index : broadphase->currentIndex;
+	int indexB = index > broadphase->currentIndex ? index : broadphase->currentIndex;
+	broadphase->pairBuffer[broadphase->pairCount].A = indexA;
+	broadphase->pairBuffer[broadphase->pairCount].B = indexB;
+	broadphase->pairCount++;
+	return true;
+}
+
+void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
+{
+	broadphase->pairCount = 0;
+	for (int i = 0; i < broadphase->moveCount; i++)
+	{
+		broadphase->currentIndex = broadphase->moveBuffer[i];
+		C3D_AABB aabb = Tree_GetFatAABB(broadphase->tree, broadphase->currentIndex);
+		Tree_Query(broadphase->tree, broadphase, &aabb);
+	}
+	broadphase->moveCount = 0;
+	qsort(broadphase->pairBuffer, );
 }
 
 /**************************************************
