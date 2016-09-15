@@ -491,7 +491,6 @@ static inline void Box_SetSensorFlag(C3D_Box* const box, bool flag)
 
 /**
  * @brief Cast a ray
- * TODO: Check to see what this function really does.
  * @note Randy Gaul: The entire function performs box to ray and finds the hit point. Using the transpose lets one solve ray to AABB and still get the correct results. Ray to AABB is easier than ray to OBB.
  */
 bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* const raycastData);
@@ -511,14 +510,151 @@ void Box_ComputeAABB(C3D_AABB* const aabb, C3D_Box* const box, const C3D_Transfo
  */
 void Box_ComputeMass(C3D_MassData* const out, C3D_Box* const box);
 
+//bool Box_Compare(C3D_Box* this, C3D_Box* other)
+//{
+//	if (this->broadPhaseIndex != other->broadPhaseIndex)
+//		return false;
+//	if (this->body->flags != this->body->flags)
+//		return false;
+//	if (this != other)
+//		return false;
+//	return true;
+//}
+
+static inline float Box_MixFriction(const C3D_Box* A, const C3D_Box* B)
+{
+	return sqrtf(A->friction * B->friction);
+}
+
+static inline float Box_MixRestitution(const C3D_Box* A, const C3D_Box* B)
+{
+	return (A->restitution > B->restitution ? A->restitution : B->restitution);
+}
+
+/**************************************************
+ * Contact Listener Functions (C++ virtual function)
+ **************************************************/
+
+/**
+ * @note Taken from: http://stackoverflow.com/questions/3113583/how-could-one-implement-c-virtual-functions-in-c
+ * TODO: Continue working on this virtual struct object.
+ */ 
+struct C3D_ContactListener;
+
+typedef struct C3D_ContactListener_FuncTable 
+{
+	void (*BeginContact)(struct C3D_ContactListener*);
+	void (*EndContact)(struct C3D_ContactListener*);
+} C3D_ContactListener_FuncTable;
+
+typedef struct C3D_ContactListener 
+{
+	C3D_ContactListener_FuncTable* virtualMethodTable;
+} C3D_ContactListener;
+
+void ContactListener_Init(C3D_ContactListener* listener)
+{
+	//TODO: ContactListener_Init() method is empty.
+}
+
+void ContactListener_Free(C3D_ContactListener* listener)
+{
+	//TODO: ContactListener_Free() method is empty.
+}
+
+void ContactListener_BeginContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint)
+{
+	//TODO: ContactListener_BeginContact() method is empty.
+}
+
+void ContactListener_EndContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint)
+{
+	//TODO: ContactListener_EndContact() method is empty.
+}
+
 /**************************************************
  * Contact Manager Functions
  **************************************************/
 
 typedef struct C3D_ContactManager 
 {
-	//TODO: Add the contents to this manager. 
+	int contactCount;
+	C3D_ContactConstraint* contactList;
+	C3D_PhysicsStack* stack;
+	C3D_PhysicsPage pageAllocator;
+	C3D_Broadphase broadphase;
+	C3D_ContactListener* contactListener;
 } C3D_ContactManager;
+
+void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack)
+{
+	manager->stack = stack;
+	PhysicsPage_Init(&manager->pageAllocator, sizeof(C3D_ContactConstraint), 256);
+	Broadphase_Init(manager->broadphase, manager);
+	manager->contactList = NULL;
+	manager->contactCount = 0;
+	manager->contactListener = NULL;
+}
+
+void Manager_AddContact(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB)
+{
+	C3D_Body* bodyA = boxA->body;
+	C3D_Body* bodyB = boxB->body;
+	if (Body_CanCollide(bodyA, bodyB))
+		return;
+	C3D_ContactEdge* edge = bodyA->contactList;
+	while (edge)
+	{
+		if (edge->other == bodyB)
+		{
+			C3D_Box* shapeA = edge->constraint->A;
+			C3D_Box* shapeB = edge->constraint->B;
+			if ((boxA == shapeA) && (boxB == shapeB))
+				return;
+			//Can we compare pointers?
+			//if (Box_Compare(boxA, shapeA) && Box_Compare(boxB, shapeB))
+			//	return;
+		}
+		edge = edge->next;
+	}
+	C3D_ContactConstraint* contact = (C3D_ContactConstraint*) PhysicsPage_Allocate(&manager->pageAllocator);
+	contact->A = boxA;
+	contact->B = boxB;
+	contact->bodyA = bodyA;
+	contact->bodyB = bodyB;
+	Manifold_SetPair(&contact->manifold, boxA, boxB);
+	contact->flags = 0;
+	contact->friction = Box_MixFriction(boxA, boxB);
+	contact->restitution = Box_MixRestitution(boxA, boxB);
+	contact->manifold.contactsCount = 0;
+	for (int i = 0; i < 8; i++)
+		contact->manifold.contacts[i].warmStarted = 0;
+	contact->previous = NULL;
+	contact->next = manager->contactList;
+	if (manager->contactList)
+		manager->contactList->previous = contact;
+	manager->contactList = contact;
+	
+	contact->edgeA.constraint = contact;
+	contact->edgeA.other = bodyB;
+	contact->edgeA.previous = NULL;
+	contact->edgeA.next = bodyA->contactList;
+	if (bodyA->contactList)
+		bodyA->contactList->previous = &contact->edgeA;
+	bodyA->contactList = &contact->edgeA;
+	
+	contact->edgeB.constraint = contact;
+	contact->edgeB.other = bodyA;
+	contact->edgeB.previous = NULL;
+	contact->edgeB.next = bodyB->contactList;
+	if (bodyB->contactList)
+		bodyB->contactList->previous = &contact->edgeB;
+	bodyB->contactList = &contact->edgeB;
+	
+	Body_SetAwake(bodyA);
+	Body_SetAwake(bodyB);
+	manager->contactCount++;
+}
 
 /**************************************************
  * Dynamic AABB Tree Node Functions
@@ -684,6 +820,12 @@ C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id)
 	return tree->nodes[id].aabb;
 }
 
+void* Tree_GetUserData(C3D_DynamicAABBTree* tree, int id)
+{
+	assert(id >= 0 && id < tree->capacity);
+	return tree->nodes[id].userData;
+}
+
 void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D_AABB* aabb)
 {
 	const int stackCapacity = 256;
@@ -711,8 +853,13 @@ void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D
 	}
 }
 
+void Tree_Validate(C3D_DynamicAABBTree* tree)
+{
+	//TODO: Continue working on this.
+}
+
 /**************************************************
- * Broadphase
+ * Broadphase Functions
  **************************************************/
 
 typedef struct C3D_ContactPair 
@@ -824,7 +971,27 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
 		Tree_Query(broadphase->tree, broadphase, &aabb);
 	}
 	broadphase->moveCount = 0;
-	qsort(broadphase->pairBuffer, );
+	qsort(broadphase->pairBuffer, broadphase->pairCount, sizeof(C3D_ContactPair), Broadphase_ContactPairSort);
+	
+	{
+		int i = 0;
+		while (i < broadphase->pairCount)
+		{
+			C3D_ContactPair* pair = broadphase->pairBuffer + i;
+			C3D_Box* boxA = (C3D_Box*) Tree_GetUserData(broadphase->tree, pair->A);
+			C3D_Box* boxB = (C3D_Box*) Tree_GetUserData(broadphase->tree, pair->B);
+			Manager_AddContact(broadphase->contactManager, boxA, boxB);
+			i++;
+			while (i < broadphase->pairCount)
+			{
+				C3D_ContactPair* potentialDuplicate = broadphase->pairBuffer + i;
+				if ((pair->A != potentialDuplicate->A) || (pair->B != potentialDuplicate->B))
+					break;
+				i++;
+			}
+		}
+	}
+	Tree_Validate(broadphase->tree);
 }
 
 /**************************************************
@@ -833,23 +1000,23 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
 
 typedef enum C3D_BodyType 
 {
-	StaticBody,
-	DynamicBody,
-	KinematicBody
+	BodyType_Static,
+	BodyType_Dynamic,
+	BodyType_Kinematic
 } C3D_BodyType;
 
 typedef enum C3D_BodyFlag 
 {
-	Awake         = 0x001,
-	Active        = 0x002,
-	AllowSleep    = 0x004,
-	BodyIsland    = 0x010,
-	Static        = 0x020,
-	Dynamic       = 0x040,
-	Kinematic     = 0x080,
-	LockAxisX     = 0x100,
-	LockAxisY     = 0x200,
-	LockAxisZ     = 0x400,
+	BodyFlag_Awake         = 0x001,
+	BodyFlag_Active        = 0x002,
+	BodyFlag_AllowSleep    = 0x004,
+	BodyFlag_BodyIsland    = 0x010,
+	BodyFlag_Static        = 0x020,
+	BodyFlag_Dynamic       = 0x040,
+	BodyFlag_Kinematic     = 0x080,
+	BodyFlag_LockAxisX     = 0x100,
+	BodyFlag_LockAxisY     = 0x200,
+	BodyFlag_LockAxisZ     = 0x400,
 } C3D_BodyFlag;
 
 typedef struct C3D_Body 
@@ -881,6 +1048,16 @@ typedef struct C3D_Body
 	struct C3D_ContactEdge* contactList;
 } C3D_Body;
 
+bool Body_CanCollide(C3D_Body* this, const C3D_Body* other)
+{
+	if (this == other)
+		return false;
+	if (!(this->flags & BodyFlag_Dynamic) && !(other->flags & BodyFlag_Dynamic))
+		return false;
+	if (!(this->layers & other->layers))
+		return false;
+	return true;
+}
 
 /**************************************************
  * Contact Functions
