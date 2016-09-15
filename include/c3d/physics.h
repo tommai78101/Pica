@@ -971,6 +971,8 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
 		Tree_Query(broadphase->tree, broadphase, &aabb);
 	}
 	broadphase->moveCount = 0;
+	
+	//TODO: Check to see if this qsort() is really working as it should be.
 	qsort(broadphase->pairBuffer, broadphase->pairCount, sizeof(C3D_ContactPair), Broadphase_ContactPairSort);
 	
 	{
