@@ -148,7 +148,8 @@ typedef struct C3D_RaycastData
 } C3D_RaycastData;
 
 /**
- *  The closest pair of features between two objects (a feature is either a vertex or an edge). 
+ *  @note The closest pair of features between two objects (a feature is either a vertex or an edge).
+ *   
  *  in stands for "incoming"
  *  out stands for "outgoing"
  *  I stands for "incident"
