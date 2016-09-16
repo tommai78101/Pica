@@ -751,8 +751,18 @@ static inline float Box_MixRestitution(const C3D_Box* A, const C3D_Box* B)
  * Physics Body Functions. (Body)
  **************************************************/
 
+/**
+ * @brief Checks of bodies of both C3D_Body objects can collide with each other.
+ * @param[in]    this       The first C3D_Body to check.
+ * @param[in]    other      The second C3D_Body to check.
+ * @return True if both C3D_Body objects can collide. False, if otherwise.
+ */
 bool Body_CanCollide(C3D_Body* this, const C3D_Body* other);
 
+/**
+ * @brief Sets the C3D_Body to be in its Awake state.
+ * @param[in,out]     body     The resulting C3D_Body object to set to the Awake state.
+ */
 void Body_SetAwake(C3D_Body* body);
 
 /**************************************************
@@ -772,10 +782,27 @@ void Broadphase_Init(C3D_Broadphase* out, C3D_ContactManager* const contactManag
  */
 void Broadphase_Free(C3D_Broadphase* out);
 
+/**
+ * TODO: Need help explaining this.
+ * @brief Inserts the index of the C3D_DynamicAABBTreeNode node object into the broadphase, and marking the node "moved".
+ * @param[in,out]    broadphase        The resulting C3D_Broadphase object for moving the index value in the move buffer.
+ * @param[in]        index             The C3D_DynamicAABBTreeNode node index in the C3D_DynamicAABBTree tree of the broadphase.
+ */
 void Broadphase_BufferMove(C3D_Broadphase* broadphase, int index);
 
+/**
+ * @brief Inserts a C3D_Box object containing the following C3D_AABB object.
+ * @param[in,out]     broadphase        The resulting C3D_Broadphase object.
+ * @param[in]         box               The C3D_Box object to insert into the broadphase's dynamic tree.
+ * @param[in]         aabb              The C3D_AABB object to write it in.
+ */
 void Broadphase_InsertBox(C3D_Broadphase* broadphase, C3D_Box* box, C3D_AABB* const aabb);
 
+/**
+ * @brief Removes a C3D_Box object from the tree node of the broadphase.
+ * @param[in,out]  broadphase        The resulting C3D_Broadphase object, with the C3D_Box object removed.
+ * @param[in]      box               The target C3D_Box object to be removed from the broadphase.
+ */
 void Broadphase_RemoveBox(C3D_Broadphase* broadphase, const C3D_Box* box);
 
 bool Broadphase_ContactPairSort(const C3D_ContactPair* lhs, const C3D_ContactPair* rhs);
@@ -785,8 +812,6 @@ int Broadphase_ContactPairQSort(const void* a, const void* b);
 void Broadphase_UpdatePairs(C3D_Broadphase* broadphase);
 
 void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb);
-
-void Broadphase_BufferMove(C3D_Broadphase* broadphase, int id);
 
 bool Broadphase_TestOverlap(C3D_Broadphase* broadphase, int A, int B);
 

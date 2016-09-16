@@ -13,5 +13,9 @@ bool Body_CanCollide(C3D_Body* this, const C3D_Body* other)
 
 void Body_SetAwake(C3D_Body* body)
 {
-	//TODO: Unimplemented method.
+	if (!(body->flags & BodyFlag_Awake))
+	{
+		body->flags |= BodyFlag_Awake;
+		body->sleepTime = 0.0f;
+	}
 }

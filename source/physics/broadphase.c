@@ -1,10 +1,5 @@
 #include <c3d/physics.h>
 
-/**
- * @brief Initializes the C3D_Broadphase object.
- * @param[in,out]   out                The resulting C3D_Broadphase object to initialize.
- * @param[in]       contactManager     The C3D_ContactManager object to initialize with.
- */
 void Broadphase_Init(C3D_Broadphase* out, C3D_ContactManager* const contactManager)
 {
 	out->contactManager = contactManager;
@@ -16,10 +11,6 @@ void Broadphase_Init(C3D_Broadphase* out, C3D_ContactManager* const contactManag
 	out->moveBuffer = (int*) linearAlloc(sizeof(unsigned int) * out->moveCapacity);
 }
 
-/**
- * @brief Releases the C3D_Broadphase object.
- * @param[in,out]     out      The resulting C3D_Broadphase object to release.
- */
 void Broadphase_Free(C3D_Broadphase* out)
 {
 	linearFree(out->moveBuffer);
