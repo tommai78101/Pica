@@ -8,6 +8,346 @@
 #include <stdlib.h>
 
 /**************************************************
+ * Constants / Defines
+ **************************************************/
+
+//May need to change the stack and heap size to different values.
+#define C3D_PHYSICSSTACK_MAX_SIZE 1024*20   //20KB
+#define C3D_PHYSICSHEAP_MAX_SIZE 1024*20    //20KB
+#define C3D_PHYSICSHEAP_INIT_SIZE 1024      //1KB
+#define MACRO_POINTER_ADD(POINTER,BYTES) ((__typeof__(POINTER))(((u8 *)POINTER)+(BYTES)))
+
+/**************************************************
+ * Basic Structures
+ **************************************************/
+
+typedef struct C3D_PhysicsStackEntry 
+{
+	u8* data;
+	unsigned int size;
+} C3D_PhysicsStackEntry;
+
+typedef struct C3D_PhysicsStack 
+{
+	u8 memory[C3D_PHYSICSSTACK_MAX_SIZE];
+	struct C3D_PhysicsStackEntry* entries;
+	
+	unsigned int index;
+	unsigned int allocation;
+	unsigned int entryCount;
+	unsigned int entryCapacity;
+} C3D_PhysicsStack;
+
+typedef struct HeapHeader 
+{
+	struct HeapHeader* next;
+	struct HeapHeader* previous;
+	unsigned int size;
+} HeapHeader;
+
+typedef struct HeapFreeBlock 
+{
+	struct HeapHeader* header;
+	unsigned int size;
+} HeapFreeBlock;
+
+typedef struct C3D_PhysicsHeap 
+{
+	struct HeapHeader* memory;
+	struct HeapFreeBlock* freeBlocks;
+	unsigned int freeBlocksCount;
+	unsigned int freeBlocksCapacity;
+} C3D_PhysicsHeap;
+
+typedef struct PageBlock 
+{
+	struct PageBlock* next;
+} PageBlock;
+
+typedef struct Page 
+{
+	struct Page* next;
+	struct PageBlock* data;
+} Page;
+
+typedef struct C3D_PhysicsPage 
+{
+	unsigned int blockSize;
+	unsigned int blocksPerPage;
+	struct Page* pages;
+	unsigned int pagesCount;
+	struct PageBlock* freeList;
+} C3D_PhysicsPage;
+
+typedef struct C3D_Transform 
+{
+	C3D_FVec position;
+	C3D_Mtx rotation;
+} C3D_Transform;
+
+typedef struct C3D_AABB 
+{
+	C3D_FVec min;
+	C3D_FVec max;
+} C3D_AABB;
+
+/**
+ * @brief Only used for Dynamic AABB Tree objects and related nodes.
+ */
+static const int TREENODE_NULL = -1;
+
+typedef struct C3D_DynamicAABBTreeNode 
+{
+	C3D_AABB aabb;
+	union 
+	{
+		int parent;
+		int next;
+	};
+	struct 
+	{
+		int left;
+		int right;
+	};
+	void* userData;
+	int height;
+} C3D_DynamicAABBTreeNode;
+
+/**
+ * @note Extent: Half-extents, or the half size of a full axis-aligned bounding box volume. Center of the box, plus half width/height/depth.
+ *       Extents as in, you have vec3 and the real position of the box is -vec3 (AABB.min) and +vec3 (AABB.max).
+ *       RandyGaul: "Extent, as in the extent of each OBB axis."
+ */
+typedef struct C3D_Box 
+{
+	struct C3D_Transform localTransform;
+	C3D_FVec extent; 
+	struct C3D_Box* next;
+	struct C3D_Body* body;
+	float friction;
+	float restitution;
+	float density;
+	unsigned int broadPhaseIndex;
+	void* userData;
+	bool sensor;
+} C3D_Box;
+
+typedef struct C3D_HalfSpace 
+{
+	C3D_FVec normal;
+	float distance;
+} C3D_HalfSpace;
+
+typedef struct C3D_RaycastData 
+{
+	C3D_FVec rayOrigin;
+	C3D_FVec direction;
+	float endPointTime;
+	float timeOfImpact;  //Solved time of impact.
+	C3D_FVec normal;     //Surface normal at impact.
+} C3D_RaycastData;
+
+/**
+ *  The closest pair of features between two objects (a feature is either a vertex or an edge). 
+ *  in stands for "incoming"
+ *  out stands for "outgoing"
+ *  I stands for "incident"
+ *  R stands for "reference"
+ *  See Dirk Gregorius GDC 2015 on creating contacts for more details. (Physics for Game Programmers: Robust Contact Creation for Physics Simulations)
+ *  
+ *  Each feature pair is used to cache solutions from one physics tick to another. This is
+ *  called warmstarting, and lets boxes stack and stay stable. Feature pairs identify points
+ *  of contact over multiple physics ticks. Each feature pair is the junction of an incoming
+ *  feature and an outgoing feature, usually a result of clipping routines. The exact info
+ *  stored in the feature pair can be arbitrary as long as the result is a unique ID for a
+ *  given intersecting configuration.
+ */
+typedef union C3D_FeaturePair 
+{
+	struct 
+	{
+		u8 incomingReference;
+		u8 outgoingReference;
+		u8 incomingIncident;
+		u8 outgoingIncident;
+	};
+	unsigned int key;
+} C3D_FeaturePair;
+
+typedef struct C3D_Contact 
+{
+	C3D_FVec position;               //World coordinate contact position
+	float penetration;               //Depth of penetration from collision
+	float normalImpulse;             //Accumulated normal impulse.
+	float tangentImpulse[2];         //Accumulated friction impulse. Tangent, because it's the opposite direction.
+	float bias;                      //Restitution + Baumgarte Stabilization.
+	float normalMass;                //Normal constraint mass.
+	float tangentMass[2];            //Tangent constraint mass.
+	C3D_FeaturePair featurePair;     //Features on A and B for this contact position.
+	u8 warmStarted;                  //Used for debug rendering.
+} C3D_Contact;
+
+typedef struct C3D_ContactPair 
+{
+	int A;
+	int B;
+} C3D_ContactPair;
+
+typedef struct C3D_Manifold
+{
+	struct C3D_Box* A;
+	struct C3D_Box* B;
+	C3D_FVec normal;
+	C3D_FVec tangentVectors[2];
+	struct C3D_Contact contacts[8];
+	unsigned int contactsCount;
+	struct C3D_Manifold* next;
+	struct C3D_Manifold* previous;
+	bool sensor;
+} C3D_Manifold;
+
+typedef struct C3D_MassData 
+{
+	C3D_Mtx inertia;
+	C3D_FVec center;
+	float mass;
+} C3D_MassData;
+
+typedef enum C3D_ContactConstraintFlag 
+{
+	Colliding        = 0x00000001,
+	WasColliding     = 0x00000002,
+	ConstraintIsland = 0x00000004,
+} C3D_ContactConstraintFlag;
+
+typedef struct C3D_ContactEdge 
+{
+	struct C3D_Body* other;
+	struct C3D_ContactConstraint* constraint;
+	struct C3D_ContactEdge* next;
+	struct C3D_ContactEdge* previous;
+} C3D_ContactEdge;
+
+typedef struct C3D_ContactConstraint 
+{
+	struct C3D_Box* A;
+	struct C3D_Box* B;
+	struct C3D_Body* bodyA;
+	struct C3D_Body* bodyB;
+	struct C3D_ContactEdge edgeA;
+	struct C3D_ContactEdge edgeB;
+	struct C3D_ContactConstraint* next;
+	struct C3D_ContactConstraint* previous;
+	float friction;
+	float restitution;
+	struct C3D_Manifold manifold;
+	unsigned int flags;
+} C3D_ContactConstraint;
+
+typedef struct C3D_ContactManager 
+{
+	int contactCount;
+	C3D_ContactConstraint* contactList;
+	C3D_PhysicsStack* stack;
+	C3D_PhysicsPage pageAllocator;
+	struct C3D_Broadphase* broadphase;
+	struct C3D_ContactListener* contactListener;
+} C3D_ContactManager;
+
+typedef enum C3D_BodyType 
+{
+	BodyType_Static,
+	BodyType_Dynamic,
+	BodyType_Kinematic
+} C3D_BodyType;
+
+typedef enum C3D_BodyFlag 
+{
+	BodyFlag_Awake         = 0x001,
+	BodyFlag_Active        = 0x002,
+	BodyFlag_AllowSleep    = 0x004,
+	BodyFlag_BodyIsland    = 0x010,
+	BodyFlag_Static        = 0x020,
+	BodyFlag_Dynamic       = 0x040,
+	BodyFlag_Kinematic     = 0x080,
+	BodyFlag_LockAxisX     = 0x100,
+	BodyFlag_LockAxisY     = 0x200,
+	BodyFlag_LockAxisZ     = 0x400,
+} C3D_BodyFlag;
+
+typedef struct C3D_Body 
+{
+	C3D_Mtx inverseInertiaModel;
+	C3D_Mtx inverseInertiaWorld;
+	float mass;
+	float inverseMass;
+	C3D_FVec linearVelocity;
+	C3D_FVec angularVelocity;
+	C3D_FVec force;
+	C3D_FVec torque;
+	struct C3D_Transform transform;
+	C3D_FQuat quaternion;
+	C3D_FVec localCenter;
+	C3D_FVec worldCenter;
+	float sleepTime;
+	float gravityScale;
+	unsigned int layers;
+	unsigned int flags;
+	struct C3D_Box* boxes;
+	void* userData;
+	struct C3D_Scene* scene;
+	struct C3D_Body* next;
+	struct C3D_Body* previous;
+	unsigned int islandIndex;
+	float linearDamping;
+	float angularDamping;
+	struct C3D_ContactEdge* contactList;
+} C3D_Body;
+
+typedef struct C3D_DynamicAABBTree 
+{
+	int root;
+	C3D_DynamicAABBTreeNode* nodes;
+	unsigned int count;
+	unsigned int capacity;
+	int freeList;
+} C3D_DynamicAABBTree;
+
+typedef struct C3D_Broadphase 
+{
+	struct C3D_ContactManager* contactManager;
+	struct C3D_ContactPair* pairBuffer;
+	unsigned int pairCount;
+	unsigned int pairCapacity;
+	int* moveBuffer;
+	unsigned int moveCount;
+	unsigned int moveCapacity;
+	struct C3D_DynamicAABBTree* tree;
+	unsigned int currentIndex;
+} C3D_Broadphase;
+
+typedef struct C3D_Scene 
+{
+	C3D_ContactManager contactManager;
+} C3D_Scene;
+
+/**
+ * @note Taken from: http://stackoverflow.com/questions/3113583/how-could-one-implement-c-virtual-functions-in-c
+ * TODO: Continue working on this virtual struct object.
+ */ 
+typedef struct C3D_ContactListener_FuncTable 
+{
+	void (*BeginContact)(struct C3D_ContactListener*);
+	void (*EndContact)(struct C3D_ContactListener*);
+} C3D_ContactListener_FuncTable;
+
+typedef struct C3D_ContactListener 
+{
+	C3D_ContactListener_FuncTable* virtualMethodTable;
+} C3D_ContactListener;
+
+
+/**************************************************
  * Common Non-Standard Citro3D Functions 
  **************************************************/
 
@@ -44,33 +384,8 @@ void FVec3_ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
 void Mtx_OuterProduct(C3D_Mtx* out, C3D_FVec* lhs, C3D_FVec* rhs);
 
 /**************************************************
- * Basic Structures 
+ * Axis-aligned Bounding Box Functions (AABB)
  **************************************************/
-
-typedef struct C3D_HalfSpace 
-{
-	C3D_FVec normal;
-	float distance;
-} C3D_HalfSpace;
-
-typedef struct C3D_RaycastData 
-{
-	C3D_FVec rayOrigin;
-	C3D_FVec direction;
-	float endPointTime;
-	float timeOfImpact;  //Solved time of impact.
-	C3D_FVec normal;     //Surface normal at impact.
-} C3D_RaycastData;
-
-/**************************************************
- * AABB Box Collision Helper Functions 
- **************************************************/
-
-typedef struct C3D_AABB 
-{
-	C3D_FVec min;
-	C3D_FVec max;
-} C3D_AABB;
 
 /**
  * @brief Checks if inner AABB box is within the outer AABB box.
@@ -124,7 +439,7 @@ static inline void AABB_FattenAABB(C3D_AABB* aabb)
 }
 
 /**************************************************
- * Raycasting Helper Functions
+ * Raycasting Helper Functions (Raycast)
  **************************************************/
 
 /**
@@ -142,7 +457,7 @@ static inline void Raycast_New(C3D_RaycastData* out, const C3D_FVec* origin, con
 }
 
 /**************************************************
- * Half-Space Helper Functions
+ * Half-Space Helper Functions (HS)
  **************************************************/
 
 /**
@@ -206,72 +521,8 @@ float HS_GetDistance(C3D_HalfSpace* in, const C3D_FVec* point);
 C3D_FVec HS_Project(C3D_HalfSpace* in, const C3D_FVec* point);
 
 /**************************************************
- * Physics Memory Functions
+ * Physics Memory Functions (Physics)
  **************************************************/
-
-//May need to change the stack and heap size to different values.
-#define C3D_PHYSICSSTACK_MAX_SIZE 1024*20   //20KB
-#define C3D_PHYSICSHEAP_MAX_SIZE 1024*20    //20KB
-#define C3D_PHYSICSHEAP_INIT_SIZE 1024      //1KB
-#define MACRO_POINTER_ADD(POINTER,BYTES) ((__typeof__(POINTER))(((u8 *)POINTER)+(BYTES)))
-
-typedef struct C3D_PhysicsStackEntry 
-{
-	u8* data;
-	unsigned int size;
-} C3D_PhysicsStackEntry;
-
-typedef struct C3D_PhysicsStack 
-{
-	u8 memory[C3D_PHYSICSSTACK_MAX_SIZE];
-	struct C3D_PhysicsStackEntry* entries;
-	
-	unsigned int index;
-	unsigned int allocation;
-	unsigned int entryCount;
-	unsigned int entryCapacity;
-} C3D_PhysicsStack;
-
-typedef struct HeapHeader 
-{
-	struct HeapHeader* next;
-	struct HeapHeader* previous;
-	unsigned int size;
-} HeapHeader;
-
-typedef struct HeapFreeBlock 
-{
-	struct HeapHeader* header;
-	unsigned int size;
-} HeapFreeBlock;
-
-typedef struct C3D_PhysicsHeap 
-{
-	struct HeapHeader* memory;
-	struct HeapFreeBlock* freeBlocks;
-	unsigned int freeBlocksCount;
-	unsigned int freeBlocksCapacity;
-} C3D_PhysicsHeap;
-
-typedef struct PageBlock 
-{
-	struct PageBlock* next;
-} PageBlock;
-
-typedef struct Page 
-{
-	struct Page* next;
-	struct PageBlock* data;
-} Page;
-
-typedef struct C3D_PhysicsPage 
-{
-	unsigned int blockSize;
-	unsigned int blocksPerPage;
-	struct Page* pages;
-	unsigned int pagesCount;
-	struct PageBlock* freeList;
-} C3D_PhysicsPage;
 
 /**
  * @brief Initializes the C3D_PhysicsStack object. If out is NULL, it will crash.
@@ -356,25 +607,8 @@ void* PhysicsPage_Allocate(C3D_PhysicsPage* pageAllocator);
 void PhysicsPage_Deallocate(C3D_PhysicsPage* pageAllocator, void* data);
 
 /**************************************************
- * Axis-aligned Bounding Box (AABB) Container Functions.
+ * Transform Helper Functions. (Transform)
  **************************************************/
-
-typedef struct C3D_MassData 
-{
-	C3D_Mtx inertia;
-	C3D_FVec center;
-	float mass;
-} C3D_MassData;
-
-/**************************************************
- * Transform Helper Functions.
- **************************************************/
-
-typedef struct C3D_Transform 
-{
-	C3D_FVec position;
-	C3D_Mtx rotation;
-} C3D_Transform;
 
 /**
  * @brief Copies data from one to the other.
@@ -434,27 +668,8 @@ static inline void Transform_MultiplyTransformFVec(C3D_FVec* out, const C3D_Tran
 }
 
 /**************************************************
- * Box Helper Functions.
+ * Box Helper Functions. (Box)
  **************************************************/
-
-/**
- * @note Extent: Half-extents, or the half size of a full axis-aligned bounding box volume. Center of the box, plus half width/height/depth.
- *       Extents as in, you have vec3 and the real position of the box is -vec3 (AABB.min) and +vec3 (AABB.max).
- *       RandyGaul: "Extent, as in the extent of each OBB axis."
- */
-typedef struct C3D_Box 
-{
-	struct C3D_Transform localTransform;
-	C3D_FVec extent; 
-	struct C3D_Box* next;
-	struct C3D_Body* body;
-	float friction;
-	float restitution;
-	float density;
-	unsigned int broadPhaseIndex;
-	void* userData;
-	bool sensor;
-} C3D_Box;
 
 /**
  * @brief Sets user data. Because this is C, you can directly manipulate user data from the C3D_Box object, if you choose so.
@@ -532,154 +747,53 @@ static inline float Box_MixRestitution(const C3D_Box* A, const C3D_Box* B)
 }
 
 /**************************************************
- * Contact Listener Functions (C++ virtual function)
+ * Physics Body Functions. (Body)
+ **************************************************/
+
+bool Body_CanCollide(C3D_Body* this, const C3D_Body* other);
+
+void Body_SetAwake(C3D_Body* body);
+
+/**************************************************
+ * Broadphase Functions (Broadphase)
  **************************************************/
 
 /**
- * @note Taken from: http://stackoverflow.com/questions/3113583/how-could-one-implement-c-virtual-functions-in-c
- * TODO: Continue working on this virtual struct object.
- */ 
-struct C3D_ContactListener;
-
-typedef struct C3D_ContactListener_FuncTable 
-{
-	void (*BeginContact)(struct C3D_ContactListener*);
-	void (*EndContact)(struct C3D_ContactListener*);
-} C3D_ContactListener_FuncTable;
-
-typedef struct C3D_ContactListener 
-{
-	C3D_ContactListener_FuncTable* virtualMethodTable;
-} C3D_ContactListener;
-
-void ContactListener_Init(C3D_ContactListener* listener)
-{
-	//TODO: ContactListener_Init() method is empty.
-}
-
-void ContactListener_Free(C3D_ContactListener* listener)
-{
-	//TODO: ContactListener_Free() method is empty.
-}
-
-void ContactListener_BeginContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint)
-{
-	//TODO: ContactListener_BeginContact() method is empty.
-}
-
-void ContactListener_EndContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint)
-{
-	//TODO: ContactListener_EndContact() method is empty.
-}
-
-/**************************************************
- * Contact Manager Functions
- **************************************************/
-
-typedef struct C3D_ContactManager 
-{
-	int contactCount;
-	C3D_ContactConstraint* contactList;
-	C3D_PhysicsStack* stack;
-	C3D_PhysicsPage pageAllocator;
-	C3D_Broadphase broadphase;
-	C3D_ContactListener* contactListener;
-} C3D_ContactManager;
-
-void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack)
-{
-	manager->stack = stack;
-	PhysicsPage_Init(&manager->pageAllocator, sizeof(C3D_ContactConstraint), 256);
-	Broadphase_Init(manager->broadphase, manager);
-	manager->contactList = NULL;
-	manager->contactCount = 0;
-	manager->contactListener = NULL;
-}
-
-void Manager_AddContact(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB)
-{
-	C3D_Body* bodyA = boxA->body;
-	C3D_Body* bodyB = boxB->body;
-	if (Body_CanCollide(bodyA, bodyB))
-		return;
-	C3D_ContactEdge* edge = bodyA->contactList;
-	while (edge)
-	{
-		if (edge->other == bodyB)
-		{
-			C3D_Box* shapeA = edge->constraint->A;
-			C3D_Box* shapeB = edge->constraint->B;
-			if ((boxA == shapeA) && (boxB == shapeB))
-				return;
-			//Can we compare pointers?
-			//if (Box_Compare(boxA, shapeA) && Box_Compare(boxB, shapeB))
-			//	return;
-		}
-		edge = edge->next;
-	}
-	C3D_ContactConstraint* contact = (C3D_ContactConstraint*) PhysicsPage_Allocate(&manager->pageAllocator);
-	contact->A = boxA;
-	contact->B = boxB;
-	contact->bodyA = bodyA;
-	contact->bodyB = bodyB;
-	Manifold_SetPair(&contact->manifold, boxA, boxB);
-	contact->flags = 0;
-	contact->friction = Box_MixFriction(boxA, boxB);
-	contact->restitution = Box_MixRestitution(boxA, boxB);
-	contact->manifold.contactsCount = 0;
-	for (int i = 0; i < 8; i++)
-		contact->manifold.contacts[i].warmStarted = 0;
-	contact->previous = NULL;
-	contact->next = manager->contactList;
-	if (manager->contactList)
-		manager->contactList->previous = contact;
-	manager->contactList = contact;
-	
-	contact->edgeA.constraint = contact;
-	contact->edgeA.other = bodyB;
-	contact->edgeA.previous = NULL;
-	contact->edgeA.next = bodyA->contactList;
-	if (bodyA->contactList)
-		bodyA->contactList->previous = &contact->edgeA;
-	bodyA->contactList = &contact->edgeA;
-	
-	contact->edgeB.constraint = contact;
-	contact->edgeB.other = bodyA;
-	contact->edgeB.previous = NULL;
-	contact->edgeB.next = bodyB->contactList;
-	if (bodyB->contactList)
-		bodyB->contactList->previous = &contact->edgeB;
-	bodyB->contactList = &contact->edgeB;
-	
-	Body_SetAwake(bodyA);
-	Body_SetAwake(bodyB);
-	manager->contactCount++;
-}
-
-/**************************************************
- * Dynamic AABB Tree Node Functions
- **************************************************/
-/**
- * @brief Only used for Dynamic AABB Tree objects and related nodes.
+ * @brief Initializes the C3D_Broadphase object.
+ * @param[in,out]   out                The resulting C3D_Broadphase object to initialize.
+ * @param[in]       contactManager     The C3D_ContactManager object to initialize with.
  */
-static const int TREENODE_NULL = -1;
+void Broadphase_Init(C3D_Broadphase* out, C3D_ContactManager* const contactManager);
 
-typedef struct C3D_DynamicAABBTreeNode 
-{
-	C3D_AABB aabb;
-	union 
-	{
-		int parent;
-		int next;
-	};
-	struct 
-	{
-		int left;
-		int right;
-	};
-	void* userData;
-	int height;
-} C3D_DynamicAABBTreeNode;
+/**
+ * @brief Releases the C3D_Broadphase object.
+ * @param[in,out]     out      The resulting C3D_Broadphase object to release.
+ */
+void Broadphase_Free(C3D_Broadphase* out);
+
+void Broadphase_BufferMove(C3D_Broadphase* broadphase, int index);
+
+void Broadphase_InsertBox(C3D_Broadphase* broadphase, C3D_Box* box, C3D_AABB* const aabb);
+
+void Broadphase_RemoveBox(C3D_Broadphase* broadphase, const C3D_Box* box);
+
+bool Broadphase_ContactPairSort(const C3D_ContactPair* lhs, const C3D_ContactPair* rhs);
+
+int Broadphase_ContactPairQSort(const void* a, const void* b);
+
+void Broadphase_UpdatePairs(C3D_Broadphase* broadphase);
+
+void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb);
+
+void Broadphase_BufferMove(C3D_Broadphase* broadphase, int id);
+
+bool Broadphase_TestOverlap(C3D_Broadphase* broadphase, int A, int B);
+
+bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index);
+
+/**************************************************
+ * Dynamic AABB Tree Node Functions (TreeNode)
+ **************************************************/
 
 /**
  * @brief Checks to see if the node is a leaf in the C3D_DynamicAABBTree data structure.
@@ -692,17 +806,8 @@ static inline bool TreeNode_IsLeaf(const C3D_DynamicAABBTreeNode* const node)
 }
 
 /**************************************************
- * Dynamic AABB Tree Functions
+ * Dynamic AABB Tree Functions (Tree)
  **************************************************/
-
-typedef struct C3D_DynamicAABBTree 
-{
-	int root;
-	C3D_DynamicAABBTreeNode* nodes;
-	unsigned int count;
-	unsigned int capacity;
-	int freeList;
-} C3D_DynamicAABBTree;
 
 /**
  * @brief Adds the index to the list of free C3D_DynamicAABBTreeNode objects available for use. This means the C3D_DynamicAABBTreeNode object and subsequent nodes will be cleared away.
@@ -718,14 +823,7 @@ void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, int index);
  */
 int Tree_AllocateNode(C3D_DynamicAABBTree* tree);
 
-void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, int index)
-{
-	assert(index >= 0 && index < tree->capacity);
-	tree->nodes[index].next = tree->freeList;
-	tree->nodes[index].height = TREENODE_NULL;
-	tree->freeList = index;
-	tree->count--;
-}
+void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, int index);
 
 /**
  * @brief Balances the tree so the tree contains C3D_DynamicAABBTreeNode objects where the tree does not have a height difference of more than 1. 
@@ -755,36 +853,7 @@ void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, int index);
  */
 void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, int id);
 
-void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, int id)
-{
-	if (id == tree->root)
-	{
-		tree->root = TREENODE_NULL;
-		return;
-	}
-	int parent = tree->nodes[id].parent;
-	int grandparent = tree->nodes[parent].right;
-	int sibling;
-	if (tree->nodes[parent].left == id)
-		sibling = tree->nodes[parent].right;
-	else
-		sibling = tree->nodes[parent].left;
-	if (grandparent != TREENODE_NULL)
-	{
-		if (tree->nodes[grandparent].left == parent)
-			tree->nodes[grandparent].left = sibling;
-		else
-			tree->nodes[grandparent].right = sibling;
-		tree->nodes[sibling].parent = grandparent;
-	}
-	else 
-	{
-		tree->root = sibling;
-		tree->nodes[sibling].parent = TREENODE_NULL;
-	}
-	Tree_DeallocateNode(tree, parent);
-	Tree_SyncHierarchy(tree, grandparent);
-}
+void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, int id);
 
 /**
  * @brief Initializes the C3D_DynamicAABBTree object.
@@ -806,355 +875,47 @@ void Tree_Free(C3D_DynamicAABBTree* tree);
  */
 int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData);
 
-void Tree_Remove(C3D_DynamicAABBTree* tree, int index)
-{
-	assert(index >= 0 && index < tree->capacity);
-	assert(TreeNode_IsLeaf(tree->nodes[index]));
-	Tree_RemoveLeaf(index);
-	Tree_DeallocateNode(index);
-}
+void Tree_Remove(C3D_DynamicAABBTree* tree, int index);
 
-C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id) 
-{
-	assert(id >= 0 && id < tree->capacity);
-	return tree->nodes[id].aabb;
-}
+C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id);
 
-void* Tree_GetUserData(C3D_DynamicAABBTree* tree, int id)
-{
-	assert(id >= 0 && id < tree->capacity);
-	return tree->nodes[id].userData;
-}
+void* Tree_GetUserData(C3D_DynamicAABBTree* tree, int id);
 
-void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D_AABB* aabb)
-{
-	const int stackCapacity = 256;
-	int stack[stackCapacity];
-	int stackPointer = 1;
-	*stack = tree->root;
-	while (stackPointer)
-	{
-		assert(stackPointer < stackCapacity);
-		int id = stack[--stackPointer];
-		const C3D_DynamicAABBTreeNode* node = tree->nodes + id;
-		if (AABB_CollidesAABB(aabb, &node->aabb))
-		{
-			if (TreeNode_IsLeaf(node))
-			{
-				if (!Broadphase_TreeCallback(broadphase, id))
-					return;
-			}
-			else 
-			{
-				stack[stackPointer++] = node->left;
-				stack[stackPointer++] = node->right;
-			}
-		}
-	}
-}
+void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D_AABB* aabb);
 
-void Tree_Validate(C3D_DynamicAABBTree* tree)
-{
-	//TODO: Continue working on this.
-}
+void Tree_ValidateStructure(C3D_DynamicAABBTree* tree, int index);
+
+void Tree_Validate(C3D_DynamicAABBTree* tree);
+
+bool Tree_Update(C3D_DynamicAABBTree* tree, int id, const C3D_AABB* aabb);
+
 
 /**************************************************
- * Broadphase Functions
+ * Contact Manager Functions (Manager)
  **************************************************/
 
-typedef struct C3D_ContactPair 
-{
-	int A;
-	int B;
-} C3D_ContactPair;
+void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack);
 
-typedef struct C3D_Broadphase 
-{
-	C3D_ContactManager* contactManager;
-	C3D_ContactPair* pairBuffer;
-	unsigned int pairCount;
-	unsigned int pairCapacity;
-	int* moveBuffer;
-	unsigned int moveCount;
-	unsigned int moveCapacity;
-	C3D_DynamicAABBTree tree;
-	unsigned int currentIndex;
-} C3D_Broadphase;
-
-/**
- * @brief Initializes the C3D_Broadphase object.
- * @param[in,out]   out                The resulting C3D_Broadphase object to initialize.
- * @param[in]       contactManager     The C3D_ContactManager object to initialize with.
- */
-void Broadphase_Init(C3D_Broadphase* out, C3D_ContactManager* const contactManager)
-{
-	out->contactManager = contactManager;
-	out->pairCount = 0;
-	out->pairCapacity = 64;
-	out->pairBuffer = (C3D_ContactPair*) linearAlloc(sizeof(C3D_ContactPair) * out->pairCapacity);
-	out->moveCount = 0;
-	out->moveCapacity = 64;
-	out->moveBuffer = (int*) linearAlloc(sizeof(unsigned int) * out->moveCapacity);
-}
-
-/**
- * @brief Releases the C3D_Broadphase object.
- * @param[in,out]     out      The resulting C3D_Broadphase object to release.
- */
-void Broadphase_Free(C3D_Broadphase* out)
-{
-	linearFree(out->moveBuffer);
-	linearFree(out->pairBuffer);
-}
-
-void Broadphase_BufferMove(C3D_Broadphase* broadphase, int index)
-{
-	if (broadphase->moveCount == broadphase->moveCapacity)
-	{
-		int* oldBuffer = broadphase->moveBuffer;
-		broadphase->moveCapacity *= 2;
-		broadphase->moveBuffer = (int*) linearAlloc(sizeof(int) * broadphase->moveCapacity);
-		memcpy(broadphase->moveBuffer, oldBuffer, sizeof(int) * broadphase->moveCapacity);
-		linearFree(oldBuffer);
-	}
-	broadphase->moveBuffer[broadphase->moveCount++] = index;
-}
-
-void Broadphase_InsertBox(C3D_Broadphase* broadphase, C3D_Box* box, C3D_AABB* const aabb)
-{
-	int id = Tree_Insert(broadphase->tree, aabb, box);
-	box->broadPhaseIndex = id;
-	Broadphase_BufferMove(id);
-}
-
-void Broadphase_RemoveBox(C3D_Broadphase* broadphase, const C3D_Box* box)
-{
-	Tree_Remove(broadphase->tree, box->broadPhaseIndex);
-}
-
-bool Broadphase_ContactPairSort(const C3D_ContactPair* lhs, const C3D_ContactPair* rhs)
-{
-	if (lhs->A < rhs->A)
-		return true;
-	if (lhs->A == rhs->A)
-		return lhs->B < rhs->B;
-	return false;
-}
-
-bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index)
-{
-	if (index == broadphase->currentIndex)
-		return true;
-	if (broadphase->pairCount == broadphase->pairCapacity)
-	{
-		C3D_ContactPair* oldBuffer = broadphase->pairBuffer;
-		broadphase->pairCapacity *= 2;
-		broadphase->pairBuffer = (C3D_ContactPair*) linearAlloc(sizeof(C3D_ContactPair) * broadphase->pairCapacity);
-		memcpy(broadphase->pairBuffer, oldBuffer, sizeof(C3D_ContactPair) * broadphase->pairCount);
-		linearFree(oldBuffer);
-	}
-	int indexA = index < broadphase->currentIndex ? index : broadphase->currentIndex;
-	int indexB = index > broadphase->currentIndex ? index : broadphase->currentIndex;
-	broadphase->pairBuffer[broadphase->pairCount].A = indexA;
-	broadphase->pairBuffer[broadphase->pairCount].B = indexB;
-	broadphase->pairCount++;
-	return true;
-}
-
-void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
-{
-	broadphase->pairCount = 0;
-	for (int i = 0; i < broadphase->moveCount; i++)
-	{
-		broadphase->currentIndex = broadphase->moveBuffer[i];
-		C3D_AABB aabb = Tree_GetFatAABB(broadphase->tree, broadphase->currentIndex);
-		Tree_Query(broadphase->tree, broadphase, &aabb);
-	}
-	broadphase->moveCount = 0;
-	
-	//TODO: Check to see if this qsort() is really working as it should be.
-	qsort(broadphase->pairBuffer, broadphase->pairCount, sizeof(C3D_ContactPair), Broadphase_ContactPairSort);
-	
-	{
-		int i = 0;
-		while (i < broadphase->pairCount)
-		{
-			C3D_ContactPair* pair = broadphase->pairBuffer + i;
-			C3D_Box* boxA = (C3D_Box*) Tree_GetUserData(broadphase->tree, pair->A);
-			C3D_Box* boxB = (C3D_Box*) Tree_GetUserData(broadphase->tree, pair->B);
-			Manager_AddContact(broadphase->contactManager, boxA, boxB);
-			i++;
-			while (i < broadphase->pairCount)
-			{
-				C3D_ContactPair* potentialDuplicate = broadphase->pairBuffer + i;
-				if ((pair->A != potentialDuplicate->A) || (pair->B != potentialDuplicate->B))
-					break;
-				i++;
-			}
-		}
-	}
-	Tree_Validate(broadphase->tree);
-}
+void Manager_AddContact(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB);
 
 /**************************************************
- * Physics Body Functions.
+ * Contact Manifold Functions (Manifold)
  **************************************************/
 
-typedef enum C3D_BodyType 
-{
-	BodyType_Static,
-	BodyType_Dynamic,
-	BodyType_Kinematic
-} C3D_BodyType;
-
-typedef enum C3D_BodyFlag 
-{
-	BodyFlag_Awake         = 0x001,
-	BodyFlag_Active        = 0x002,
-	BodyFlag_AllowSleep    = 0x004,
-	BodyFlag_BodyIsland    = 0x010,
-	BodyFlag_Static        = 0x020,
-	BodyFlag_Dynamic       = 0x040,
-	BodyFlag_Kinematic     = 0x080,
-	BodyFlag_LockAxisX     = 0x100,
-	BodyFlag_LockAxisY     = 0x200,
-	BodyFlag_LockAxisZ     = 0x400,
-} C3D_BodyFlag;
-
-typedef struct C3D_Body 
-{
-	C3D_Mtx inverseInertiaModel;
-	C3D_Mtx inverseInertiaWorld;
-	float mass;
-	float inverseMass;
-	C3D_FVec linearVelocity;
-	C3D_FVec angularVelocity;
-	C3D_FVec force;
-	C3D_FVec torque;
-	struct C3D_Transform transform;
-	C3D_FQuat quaternion;
-	C3D_FVec localCenter;
-	C3D_FVec worldCenter;
-	float sleepTime;
-	float gravityScale;
-	float layers;
-	unsigned int flags;
-	struct C3D_Box* boxes;
-	void* userData;
-	struct C3D_Scene* scene;
-	struct C3D_Body* next;
-	struct C3D_Body* previous;
-	unsigned int islandIndex;
-	float linearDamping;
-	float angularDamping;
-	struct C3D_ContactEdge* contactList;
-} C3D_Body;
-
-bool Body_CanCollide(C3D_Body* this, const C3D_Body* other)
-{
-	if (this == other)
-		return false;
-	if (!(this->flags & BodyFlag_Dynamic) && !(other->flags & BodyFlag_Dynamic))
-		return false;
-	if (!(this->layers & other->layers))
-		return false;
-	return true;
-}
+void Manifold_SetPair(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB);
 
 /**************************************************
- * Contact Functions
+ * Contact Listener Functions (C++ virtual function)
  **************************************************/
 
-/**
- *  The closest pair of features between two objects (a feature is either a vertex or an edge). 
- *  in stands for "incoming"
- *  out stands for "outgoing"
- *  I stands for "incident"
- *  R stands for "reference"
- *  See Dirk Gregorius GDC 2015 on creating contacts for more details. (Physics for Game Programmers: Robust Contact Creation for Physics Simulations)
- *  
- *  Each feature pair is used to cache solutions from one physics tick to another. This is
- *  called warmstarting, and lets boxes stack and stay stable. Feature pairs identify points
- *  of contact over multiple physics ticks. Each feature pair is the junction of an incoming
- *  feature and an outgoing feature, usually a result of clipping routines. The exact info
- *  stored in the feature pair can be arbitrary as long as the result is a unique ID for a
- *  given intersecting configuration.
- */
-typedef union C3D_FeaturePair 
-{
-	struct 
-	{
-		u8 incomingReference;
-		u8 outgoingReference;
-		u8 incomingIncident;
-		u8 outgoingIncident;
-	};
-	unsigned int key;
-} C3D_FeaturePair;
+void ContactListener_Init(C3D_ContactListener* listener);
 
-typedef struct C3D_Contact 
-{
-	C3D_FVec position;               //World coordinate contact position
-	float penetration;               //Depth of penetration from collision
-	float normalImpulse;             //Accumulated normal impulse.
-	float tangentImpulse[2];         //Accumulated friction impulse. Tangent, because it's the opposite direction.
-	float bias;                      //Restitution + Baumgarte Stabilization.
-	float normalMass;                //Normal constraint mass.
-	float tangentMass[2];            //Tangent constraint mass.
-	C3D_FeaturePair featurePair;     //Features on A and B for this contact position.
-	u8 warmStarted;                  //Used for debug rendering.
-} C3D_Contact;
+void ContactListener_Free(C3D_ContactListener* listener);
 
-typedef struct C3D_Manifold
-{
-	struct C3D_Box* A;
-	struct C3D_Box* B;
-	C3D_FVec normal;
-	C3D_FVec tangentVectors[2];
-	struct C3D_Contact contacts[8];
-	unsigned int contactsCount;
-	struct C3D_Manifold* next;
-	struct C3D_Manifold* previous;
-	bool sensor;
-} C3D_Manifold;
+void ContactListener_BeginContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint);
 
-typedef enum C3D_ContactConstraintFlag 
-{
-	Colliding        = 0x00000001,
-	WasColliding     = 0x00000002,
-	ConstraintIsland = 0x00000004,
-} C3D_ContactConstraintFlag;
-
-typedef struct C3D_ContactEdge 
-{
-	struct C3D_Body* other;
-	struct C3D_ContactConstraint* constraint;
-	struct C3D_ContactEdge* next;
-	struct C3D_ContactEdge* previous;
-} C3D_ContactEdge;
-
-typedef struct C3D_ContactConstraint 
-{
-	struct C3D_Box* A;
-	struct C3D_Box* B;
-	struct C3D_Body* bodyA;
-	struct C3D_Body* bodyB;
-	struct C3D_ContactEdge edgeA;
-	struct C3D_ContactEdge edgeB;
-	struct C3D_ContactConstraint* next;
-	struct C3D_ContactConstraint* previous;
-	float friction;
-	float restitution;
-	struct C3D_Manifold manifold;
-	unsigned int flags;
-} C3D_ContactConstraint;
+void ContactListener_EndContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint);
 
 /**************************************************
- * Scene Functions
+ * Scene Functions (Scene)
  **************************************************/
-
-typedef struct C3D_Scene 
-{
-	C3D_ContactManager contactManager;
-	
-} C3D_Scene;

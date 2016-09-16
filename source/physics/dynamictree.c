@@ -245,3 +245,144 @@ int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData)
 	Tree_InsertLeaf(tree, id);
 	return id;
 }
+
+void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, int index)
+{
+	assert(index >= 0 && index < tree->capacity);
+	tree->nodes[index].next = tree->freeList;
+	tree->nodes[index].height = TREENODE_NULL;
+	tree->freeList = index;
+	tree->count--;
+}
+
+void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, int id)
+{
+	if (id == tree->root)
+	{
+		tree->root = TREENODE_NULL;
+		return;
+	}
+	int parent = tree->nodes[id].parent;
+	int grandparent = tree->nodes[parent].right;
+	int sibling;
+	if (tree->nodes[parent].left == id)
+		sibling = tree->nodes[parent].right;
+	else
+		sibling = tree->nodes[parent].left;
+	if (grandparent != TREENODE_NULL)
+	{
+		if (tree->nodes[grandparent].left == parent)
+			tree->nodes[grandparent].left = sibling;
+		else
+			tree->nodes[grandparent].right = sibling;
+		tree->nodes[sibling].parent = grandparent;
+	}
+	else 
+	{
+		tree->root = sibling;
+		tree->nodes[sibling].parent = TREENODE_NULL;
+	}
+	Tree_DeallocateNode(tree, parent);
+	Tree_SyncHierarchy(tree, grandparent);
+}
+
+void Tree_Remove(C3D_DynamicAABBTree* tree, int index)
+{
+	assert(index >= 0 && index < tree->capacity);
+	assert(TreeNode_IsLeaf(&tree->nodes[index]));
+	Tree_RemoveLeaf(tree, index);
+	Tree_DeallocateNode(tree, index);
+}
+
+C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id) 
+{
+	assert(id >= 0 && id < tree->capacity);
+	return tree->nodes[id].aabb;
+}
+
+void* Tree_GetUserData(C3D_DynamicAABBTree* tree, int id)
+{
+	assert(id >= 0 && id < tree->capacity);
+	return tree->nodes[id].userData;
+}
+
+void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D_AABB* aabb)
+{
+	const int stackCapacity = 256;
+	int stack[stackCapacity];
+	int stackPointer = 1;
+	*stack = tree->root;
+	while (stackPointer)
+	{
+		assert(stackPointer < stackCapacity);
+		int id = stack[--stackPointer];
+		const C3D_DynamicAABBTreeNode* node = tree->nodes + id;
+		if (AABB_CollidesAABB(aabb, &node->aabb))
+		{
+			if (TreeNode_IsLeaf(node))
+			{
+				if (!Broadphase_TreeCallback(broadphase, id))
+					return;
+			}
+			else 
+			{
+				stack[stackPointer++] = node->left;
+				stack[stackPointer++] = node->right;
+			}
+		}
+	}
+}
+
+void Tree_ValidateStructure(C3D_DynamicAABBTree* tree, int index)
+{
+	C3D_DynamicAABBTreeNode* node = tree->nodes + index;
+	int indexLeft = node->left;
+	int indexRight = node->right;
+	if (TreeNode_IsLeaf(node))
+	{
+		assert(indexRight == TREENODE_NULL);
+		assert(node->height == 0);
+		return;
+	}
+	assert(indexLeft >= 0 && indexLeft < tree->capacity);
+	assert(indexRight >= 0 && indexRight < tree->capacity);
+	C3D_DynamicAABBTreeNode* leftNode = tree->nodes + indexLeft;
+	C3D_DynamicAABBTreeNode* rightNode = tree->nodes + indexRight;
+	assert(leftNode->parent == index);
+	assert(rightNode->parent == index);
+	Tree_ValidateStructure(tree, indexLeft);
+	Tree_ValidateStructure(tree, indexRight);
+}
+
+void Tree_Validate(C3D_DynamicAABBTree* tree)
+{
+	int freeNodes = 0;
+	int index = tree->freeList;
+	while (index != TREENODE_NULL)
+	{
+		assert(index >= 0 && index < tree->capacity);
+		index = tree->nodes[index].next;
+		freeNodes++;
+	}
+	assert(tree->count + freeNodes == tree->capacity);
+	if (tree->root != TREENODE_NULL)
+	{
+		assert(tree->nodes[tree->root].parent == TREENODE_NULL);
+#if _DEBUG
+		Tree_ValidateStructure(tree, tree->root);
+#endif
+	}
+}
+
+bool Tree_Update(C3D_DynamicAABBTree* tree, int id, const C3D_AABB* aabb)
+{
+	assert(id >= 0 && id < tree->capacity);
+	assert(TreeNode_IsLeaf(&tree->nodes[id]));
+	if (AABB_ContainsAABB(&tree->nodes[id].aabb, aabb))
+		return false;
+	Tree_RemoveLeaf(tree, id);
+	tree->nodes[id].aabb = *aabb;
+	AABB_FattenAABB(&tree->nodes[id].aabb);
+	Tree_InsertLeaf(tree, id);
+	return true;
+}
