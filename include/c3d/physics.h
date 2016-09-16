@@ -17,6 +17,11 @@
 #define C3D_PHYSICSHEAP_INIT_SIZE 1024      //1KB
 #define MACRO_POINTER_ADD(POINTER,BYTES) ((__typeof__(POINTER))(((u8 *)POINTER)+(BYTES)))
 
+/**
+ * @brief Only used for Dynamic AABB Tree objects and related nodes.
+ */
+static const int TREENODE_NULL = -1;
+
 /**************************************************
  * Basic Structures
  **************************************************/
@@ -90,11 +95,6 @@ typedef struct C3D_AABB
 	C3D_FVec min;
 	C3D_FVec max;
 } C3D_AABB;
-
-/**
- * @brief Only used for Dynamic AABB Tree objects and related nodes.
- */
-static const int TREENODE_NULL = -1;
 
 typedef struct C3D_DynamicAABBTreeNode 
 {
