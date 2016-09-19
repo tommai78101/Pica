@@ -108,7 +108,7 @@ void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb)
 		Broadphase_BufferMove(broadphase, id);
 }
 
-bool Broadphase_TestOverlap(C3D_Broadphase* broadphase, int A, int B)
+bool Broadphase_CanOverlap(C3D_Broadphase* broadphase, int A, int B)
 {
 	C3D_AABB fatA = Tree_GetFatAABB(broadphase->tree, A);
 	C3D_AABB fatB = Tree_GetFatAABB(broadphase->tree, A);
@@ -118,7 +118,7 @@ bool Broadphase_TestOverlap(C3D_Broadphase* broadphase, int A, int B)
 bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index)
 {
 	if (index == broadphase->currentIndex)
-		return false;  //FIXME: Base code says this is "true".
+		return false;  //FIXME: Base code says this is "true", but I feel this should be "false".
 	if (broadphase->pairCount == broadphase->pairCapacity)
 	{
 		C3D_ContactPair* oldBuffer = broadphase->pairBuffer;

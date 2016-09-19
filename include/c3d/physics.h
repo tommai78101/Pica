@@ -842,7 +842,7 @@ void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb)
  * @param[in]           B                   The second C3D_DynamicAABBTreeNode node object's ID to test overlaps with.
  * @return True if there exists an overlap. False, if otherwise. 
  */
-bool Broadphase_TestOverlap(C3D_Broadphase* broadphase, int A, int B);
+bool Broadphase_CanOverlap(C3D_Broadphase* broadphase, int A, int B);
 
 /**
  * @brief An update (procedure) function for C3D_Broadphase objects where it will increase the minimum and maximum of the contact pairs as it iterates through the broadphase pair buffers.
@@ -886,6 +886,11 @@ void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, int index);
  */
 int Tree_AllocateNode(C3D_DynamicAABBTree* tree);
 
+/**
+ * @brief Releases the C3D_DynamicAABBTreeNode node by clearing an occupied node of the given index.
+ * @param[in,out]     tree           The resulting C3D_DynamicAABBTree object.
+ * @param[in]         index          The index of the C3D_DynamicAABBTreeNode node to be cleared away.  
+ */
 void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, int index);
 
 /**
@@ -910,12 +915,17 @@ int Tree_Balance(C3D_DynamicAABBTree* tree, int indexA);
 void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, int index);
 
 /**
- * @brief Inserts a new C3D_DynamicAABBTreeNode leaf node at the C3D_DynamicAABBTreeNode node index (ID). In other words, inserts a child node at the parent node of node index ID.
+ * @brief Inserts a new C3D_DynamicAABBTreeNode leaf node of the C3D_DynamicAABBTreeNode node index (ID). In other words, inserts a child node at the parent node index ID.
  * @param[in,out]      tree      The resulting C3D_DynamicAABBTree tree with the inserted C3D_DynamicAABBTreeNode node.
  * @param[in]          id        The C3D_DynamicAABBTreeNode node index value to insert the leaf node at, setting the given C3D_DynamicAABBTreeNode node as the parent node.
  */
 void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, int id);
 
+/**
+ * @brief Removes a C3D_DynamicAABBTreeNode leaf node of the given C3D_DynamicAABBTreeNode node index (ID). In other words, removes a child node from the parent node index ID.
+ * @param[in,out]      tree      The resulting C3D_DynamicAABBTree tree with the removed C3D_DynamicAABBTreeNode node.
+ * @param[in]          id        The C3D_DynamicAABBTreeNode nodex index value to remove the leaf node at, setting the appropriate parent node.
+ */
 void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, int id);
 
 /**
@@ -938,6 +948,11 @@ void Tree_Free(C3D_DynamicAABBTree* tree);
  */
 int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData);
 
+/**
+ * @brief Removes the given C3D_DynamicAABBTreeNode node object at the given index. This includes removing any child C3D_DynamicAABBTreeNode nodes.
+ * @param[in,out]       tree      The resulting C3D_DynamicAABBTree tree object with the specified C3D_DynamicAABBTreeNode node object removed.
+ * @param[in]           index     The index of the C3D_DynamicAABBTreeNode node object to be removed, including child C3D_DynamicAABBTreeNode nodes.
+ */
 void Tree_Remove(C3D_DynamicAABBTree* tree, int index);
 
 C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id);
