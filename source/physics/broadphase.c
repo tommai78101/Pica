@@ -118,7 +118,7 @@ bool Broadphase_TestOverlap(C3D_Broadphase* broadphase, int A, int B)
 bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index)
 {
 	if (index == broadphase->currentIndex)
-		return true;
+		return false;  //FIXME: Base code says this is "true".
 	if (broadphase->pairCount == broadphase->pairCapacity)
 	{
 		C3D_ContactPair* oldBuffer = broadphase->pairBuffer;

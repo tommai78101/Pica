@@ -805,16 +805,53 @@ void Broadphase_InsertBox(C3D_Broadphase* broadphase, C3D_Box* box, C3D_AABB* co
  */
 void Broadphase_RemoveBox(C3D_Broadphase* broadphase, const C3D_Box* box);
 
+/**
+ * @brief A callback function used only for the standard C++ function, std::sort(), in the <algorithm> standard header. Not intended to be used for anything else.
+ * @param[in]     lhs       The operand input for qsort().
+ * @param[in]     rhs       The operand input for qsort().
+ * @return Value for std::sort() to determine priority/order.
+ */
 bool Broadphase_ContactPairSort(const C3D_ContactPair* lhs, const C3D_ContactPair* rhs);
 
+/**
+ * @brief A callback function used only for the standard C function, qsort(), in the <stdlib.h> standard header. Not intended to be used for anything else.
+ * @param[in]     a       The operand input for qsort().
+ * @param[in]     b       The operand input for qsort().
+ * @return Value for qsort() to determine priority/order.
+ */
 int Broadphase_ContactPairQSort(const void* a, const void* b);
 
+/**
+ * @brief Updates and validates any modified changes to the C3D_ContactPair objects.
+ * @param[in,out]    broadphase       The resulting C3D_Broadphase object to update/validate the C3D_ContactPair objects from.
+ */
 void Broadphase_UpdatePairs(C3D_Broadphase* broadphase);
 
+/**
+ * @brief Updates the entire C3D_Broadphase object, by updating the C3D_DynamicAABBTree tree object of the broadphase.
+ * @param[in,out]      broadphase           The resulting C3D_Broadphase object to update.
+ * @param[in]          id                   The C3D_DynamicAABBTreeNode node object to update with the new C3D_AABB object.
+ * @param[in]          aabb                 The C3D_AABB object for updating the C3D_DynamicAABBTreeNode node object with.
+ */
 void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb);
 
+/**
+ * @brief Check for any overlapping C3D_DynamicAABBTreeNode node objects based on the nodes' C3D_AABB boundaries.
+ * @param[in,out]       broadphase          The resulting C3D_Broadphase object to test for overlaps.
+ * @param[in]           A                   The first C3D_DynamicAABBTreeNode node object's ID to test overlaps with.
+ * @param[in]           B                   The second C3D_DynamicAABBTreeNode node object's ID to test overlaps with.
+ * @return True if there exists an overlap. False, if otherwise. 
+ */
 bool Broadphase_TestOverlap(C3D_Broadphase* broadphase, int A, int B);
 
+/**
+ * @brief An update (procedure) function for C3D_Broadphase objects where it will increase the minimum and maximum of the contact pairs as it iterates through the broadphase pair buffers.
+ *        Should not be used outside of C3D_Broadphase objects.
+ * FIXME: Possible logic error from the original base code.
+ * @param[in,out]     broadphase       The resulting C3D_Broadphase object.
+ * @param[in]         index            The C3D_ContactPair object index to update.
+ * @return LOGIC ERROR. (Always true). 
+ */
 bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index);
 
 /**************************************************
