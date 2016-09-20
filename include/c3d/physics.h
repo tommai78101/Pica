@@ -737,11 +737,23 @@ void Box_ComputeMass(C3D_MassData* const out, C3D_Box* const box);
 //	return true;
 //}
 
+/**
+ * @brief Obtain the total net force of the combined friction exerted on both C3D_Box objects.
+ * @param[in]        A           One of the C3D_Box objects to measure.
+ * @param[in]        B           One of the other C3D_Box objects to measure.
+ * @return The combined friction applied to both C3D_Box objects. 
+ */
 static inline float Box_MixFriction(const C3D_Box* A, const C3D_Box* B)
 {
 	return sqrtf(A->friction * B->friction);
 }
 
+/**
+ * @brief Obtain the total net coefficient of restitution from both C3D_Box objects. Restitution is how much of the kinetic energy remains for the objects to rebound from one another vs. how much is lost as heat.
+ * @param[in]         A           One of the C3D_Box objects to measure.
+ * @param[in]         B           One of the other C3D_Box objects to measure.
+ * @return The combined coefficient of restitution from both C3D_Box objects.
+ */
 static inline float Box_MixRestitution(const C3D_Box* A, const C3D_Box* B)
 {
 	return (A->restitution > B->restitution ? A->restitution : B->restitution);
@@ -955,16 +967,49 @@ int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData)
  */
 void Tree_Remove(C3D_DynamicAABBTree* tree, int index);
 
+/**
+ * @brief Obtain the C3D_AABB object from C3D_DynamicAABBTreeNode node of index ID from C3D_DynamicAABBTree tree object.
+ * @param[in]         tree           The tree to look for the C3D_DynamicAABBTreeNode node that matches the index ID.
+ * @param[in]         id             The C3D_DynamicAABBTreeNode node index ID to look for in the C3D_DynamicAABBTree tree object.
+ * @return The C3D_AABB object that matches the above conditions. 
+ */
 C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id);
 
+/**
+ * @brief Obtains the user data from the C3D_DynamicAABBTreeNode node stored in the C3D_DynamicAABBTree tree object.
+ * @param[in]     tree         The C3D_DynamicAABBTree tree object to look for.
+ * @param[in]     id           The C3D_DynamicAABBTreeNode node index ID to look for.
+ * @return the C3D_AABB object stored in the C3D_DynamicAABBTreeNode node of index ID in the C3D_DynamicAABBTree tree.
+ */
 void* Tree_GetUserData(C3D_DynamicAABBTree* tree, int id);
 
+/**
+ * @brief Queries for information to retrieve from the C3D_DynamicAABBTree tree.
+ * @param[in,out]      tree             The C3D_DynamicAABBTree tree object to query through.
+ * @param[in]          broadphase       The C3D_Broadphase object to update.
+ * @param[in]          aabb             The C3D_AABB object to validate with.
+ */
 void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D_AABB* aabb);
 
+/**
+ * @brief Checks if the C3D_DynamicAABBTree tree object contains any invalid C3D_DynamicAABBTreeNode node positions, and aims to fix it.
+ * @param[in,out]         tree              The resulting C3D_DynamicAABBTree tree object with the correct C3D_DynamicAABBTreeNode node positions.
+ * @param[in]             index             The index of the C3D_DynamicAABBTreeNode node, for the validation to start from.
+ */
 void Tree_ValidateStructure(C3D_DynamicAABBTree* tree, int index);
 
+/**
+ * @brief Quickly checks if the C3D_DynamicAABBTree tree object itself is intact. Does not include validating the C3D_DynamicAABBTree tree structure in its entirety.
+ * @param[in,out]     tree        C3D_DynamicAABBTree object to validate.
+ */
 void Tree_Validate(C3D_DynamicAABBTree* tree);
 
+/**
+ * @brief Updates the C3D_DynamicAABBTree tree.
+ * @param[in,out]      tree                  The resulting C3D_DynamicAABBTree tree object.
+ * @param[in]          id                    The C3D_DynamicAABBTreeNode node to write the new C3D_AABB object to..
+ * @param[in]          aabb                  The C3D_AABB object to replace with the already existing C3D_AABB object, stored previously in the C3D_DynamicAABBTreeNode node with the given ID.
+ */
 bool Tree_Update(C3D_DynamicAABBTree* tree, int id, const C3D_AABB* aabb);
 
 
