@@ -117,6 +117,7 @@ bool Broadphase_CanOverlap(C3D_Broadphase* broadphase, int A, int B)
 
 bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index)
 {
+	//TODO: Convert this into a virtual function, or have some sort of wrapper to support user-defined callbacks
 	if (index == broadphase->currentIndex)
 		return true;
 	if (broadphase->pairCount == broadphase->pairCapacity)

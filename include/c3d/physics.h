@@ -861,11 +861,15 @@ void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb)
 bool Broadphase_CanOverlap(C3D_Broadphase* broadphase, int A, int B);
 
 /**
- * @brief The default callback function for C3D_Broadphase objects where it will increase the minimum and maximum of the contact pairs as it iterates through the broadphase pair buffers.
- *        Should not be used outside of C3D_Broadphase objects.
- * @note: RandyGaul: The tree callback can be the one given by default, or be a user supplied callback. The internal callback you pointed out in q3BroadPhase.h is interested in *all* broadphase reports, and will always return true. 
+ * @brief The default callback function for C3D_Broadphase objects to query. Should not be used outside of C3D_Broadphase objects. Usually, the callback is from user-defined callbacks, and not the default callback.
+ * @note: 
+ * RandyGaul: When a query is made the query will find all matches, and this exhaustive search takes CPU time. Sometimes all the user cares about is a particular query "hit", and then wants to terminate the rest of the search immediately. For example I shoot a ray into the world to check and see if I hit *anything*, so I would pass in false to first result.
+ *            The tree callback can be the one given by default, or be a user supplied callback. The internal callback you pointed out in q3BroadPhase.h is interested in *all* broadphase reports, and will always return true.
+ *            This is why you sometimes hear negative comments about using callbacks. Generally they are complicated and difficult to follow. They ruin typical code-flow. 
+ *            Callbacks are an abstraction, and the abstraction cost is harder to follow code. In the physics engine case since it stores a lot of memory and users want to peek into the memory the 
+ *            callbacks seem necessary, but I have never been happy with them. 
  * @param[in,out]     broadphase       The resulting C3D_Broadphase object.
- * @param[in]         index            The C3D_ContactPair object index to update.
+ * @param[in]         index            The C3D_ContactPair object index to check on.
  * @return True, because the callback is interested in all broadphase reports.
  */
 bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index);
