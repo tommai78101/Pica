@@ -861,12 +861,12 @@ void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb)
 bool Broadphase_CanOverlap(C3D_Broadphase* broadphase, int A, int B);
 
 /**
- * @brief An update (procedure) function for C3D_Broadphase objects where it will increase the minimum and maximum of the contact pairs as it iterates through the broadphase pair buffers.
+ * @brief The default callback function for C3D_Broadphase objects where it will increase the minimum and maximum of the contact pairs as it iterates through the broadphase pair buffers.
  *        Should not be used outside of C3D_Broadphase objects.
- * FIXME: Possible logic error from the original base code.
+ * @note: RandyGaul: The tree callback can be the one given by default, or be a user supplied callback. The internal callback you pointed out in q3BroadPhase.h is interested in *all* broadphase reports, and will always return true. 
  * @param[in,out]     broadphase       The resulting C3D_Broadphase object.
  * @param[in]         index            The C3D_ContactPair object index to update.
- * @return LOGIC ERROR. (Always true). 
+ * @return True, because the callback is interested in all broadphase reports.
  */
 bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index);
 
