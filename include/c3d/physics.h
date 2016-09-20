@@ -743,6 +743,7 @@ void Box_ComputeMass(C3D_MassData* const out, C3D_Box* const box);
 
 /**
  * @brief Obtain the total net force of the combined friction exerted on both C3D_Box objects.
+ * @note Friction mixing. The idea is to allow a very low friction value to drive down the mixing result. Example: anything slides on ice.
  * @param[in]        A           One of the C3D_Box objects to measure.
  * @param[in]        B           One of the other C3D_Box objects to measure.
  * @return The combined friction applied to both C3D_Box objects. 
@@ -754,6 +755,7 @@ static inline float Box_MixFriction(const C3D_Box* A, const C3D_Box* B)
 
 /**
  * @brief Obtain the total net coefficient of restitution from both C3D_Box objects. Restitution is how much of the kinetic energy remains for the objects to rebound from one another vs. how much is lost as heat.
+ * @note Restitution mixing. The idea is to use the maximum bounciness, so bouncy objects will never not bounce during collisions.
  * @param[in]         A           One of the C3D_Box objects to measure.
  * @param[in]         B           One of the other C3D_Box objects to measure.
  * @return The combined coefficient of restitution from both C3D_Box objects.
@@ -1025,15 +1027,45 @@ bool Tree_Update(C3D_DynamicAABBTree* tree, int id, const C3D_AABB* aabb);
  * Contact Manager Functions (Manager)
  **************************************************/
 
+/**
+ * @brief Initializes the C3D_ContactManager object with the provided C3D_PhysicsStack memory stack.
+ * @param[in,out]    manager          The resulting C3D_ContactManager object.
+ * @param[in]        stack            The C3D_PhysicsStack memory stack to initialize the C3D_ContactManager object with.
+ */
 void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack);
 
+/**
+ * @brief Adds a contact where C3D_Box objects, boxA and boxB, are touching or overlapping each other.
+ * @param[in,out]      manager         The resulting C3D_ContactManager object.
+ * @param[in]          boxA            The C3D_Box object to check for contacts.
+ * @param[in]          boxB            The C3D_Box object to check for contacts.
+ */
 void Manager_AddContact(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB);
 
 /**************************************************
  * Contact Manifold Functions (Manifold)
  **************************************************/
 
+/**
+ * @brief Sets the C3D_Manifold object to store the C3D_Box pair, boxA and boxB. The C3D_Manifold object is used for solving collisions.
+ * @param[in,out]    manifold       The resulting C3D_Manifold to store the C3D_Box pair, A and B.
+ * @param[in]        boxA           The first C3D_Box.
+ * @param[in]        boxB           The second C3D_Box.
+ */
 void Manifold_SetPair(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB);
+
+/**************************************************
+ * Contact Constraints Functions (Constraint)
+ **************************************************/
+
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Contact.cpp#L41
+void Constraint_CollisionResponse(C3D_ContactConstraint* constraint);
+
+/**************************************************
+ * Contact Solver Functions (Solver)
+ **************************************************/
+
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactSolver.h
 
 /**************************************************
  * Contact Listener Functions (C++ virtual function)
