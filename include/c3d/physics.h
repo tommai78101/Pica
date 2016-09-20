@@ -342,8 +342,8 @@ typedef struct C3D_Scene
  */ 
 typedef struct C3D_ContactListener_FuncTable 
 {
-	void (*BeginContact)(struct C3D_ContactListener*);
-	void (*EndContact)(struct C3D_ContactListener*);
+	void (*BeginContact)(struct C3D_ContactListener*, const C3D_ContactConstraint* constraint);
+	void (*EndContact)(struct C3D_ContactListener*, const C3D_ContactConstraint* constraint);
 } C3D_ContactListener_FuncTable;
 
 typedef struct C3D_ContactListener 
