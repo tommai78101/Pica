@@ -39,33 +39,32 @@ typedef struct C3D_PhysicsStackEntry
 typedef struct C3D_PhysicsStack 
 {
 	u8 memory[C3D_PHYSICSSTACK_MAX_SIZE];
-	struct C3D_PhysicsStackEntry* entries;
-	
 	unsigned int index;
 	unsigned int allocation;
 	unsigned int entryCount;
 	unsigned int entryCapacity;
+	struct C3D_PhysicsStackEntry* entries;
 } C3D_PhysicsStack;
 
 typedef struct HeapHeader 
 {
+	unsigned int size;
 	struct HeapHeader* next;
 	struct HeapHeader* previous;
-	unsigned int size;
 } HeapHeader;
 
 typedef struct HeapFreeBlock 
 {
-	struct HeapHeader* header;
 	unsigned int size;
+	struct HeapHeader* header;
 } HeapFreeBlock;
 
 typedef struct C3D_PhysicsHeap 
 {
-	struct HeapHeader* memory;
-	struct HeapFreeBlock* freeBlocks;
 	unsigned int freeBlocksCount;
 	unsigned int freeBlocksCapacity;
+	struct HeapHeader* memory;
+	struct HeapFreeBlock* freeBlocks;
 } C3D_PhysicsHeap;
 
 typedef struct PageBlock 
@@ -83,8 +82,8 @@ typedef struct C3D_PhysicsPage
 {
 	unsigned int blockSize;
 	unsigned int blocksPerPage;
-	struct Page* pages;
 	unsigned int pagesCount;
+	struct Page* pages;
 	struct PageBlock* freeList;
 } C3D_PhysicsPage;
 
@@ -102,7 +101,6 @@ typedef struct C3D_AABB
 
 typedef struct C3D_DynamicAABBTreeNode 
 {
-	C3D_AABB aabb;
 	union 
 	{
 		int parent;
@@ -113,8 +111,9 @@ typedef struct C3D_DynamicAABBTreeNode
 		int left;
 		int right;
 	};
-	void* userData;
 	int height;
+	void* userData;
+	C3D_AABB aabb;
 } C3D_DynamicAABBTreeNode;
 
 /**
@@ -124,35 +123,36 @@ typedef struct C3D_DynamicAABBTreeNode
  */
 typedef struct C3D_Box 
 {
-	struct C3D_Transform localTransform;
-	C3D_FVec extent; 
-	struct C3D_Box* next;
-	struct C3D_Body* body;
+	bool sensor;
+	unsigned int broadPhaseIndex;
 	float friction;
 	float restitution;
 	float density;
-	unsigned int broadPhaseIndex;
 	void* userData;
-	bool sensor;
+	C3D_FVec extent; 
+	struct C3D_Transform localTransform;
+	struct C3D_Box* next;
+	struct C3D_Body* body;
 } C3D_Box;
 
 typedef struct C3D_HalfSpace 
 {
-	C3D_FVec normal;
 	float distance;
+	C3D_FVec normal;
 } C3D_HalfSpace;
 
 typedef struct C3D_RaycastData 
 {
-	C3D_FVec rayOrigin;
-	C3D_FVec direction;
 	float endPointTime;
 	float timeOfImpact;  //Solved time of impact.
+	C3D_FVec rayOrigin;
+	C3D_FVec direction;
 	C3D_FVec normal;     //Surface normal at impact.
 } C3D_RaycastData;
 
 /**
- *  @note The closest pair of features between two objects (a feature is either a vertex or an edge).
+ *  @note 
+ *  RandyGaul: The closest pair of features between two objects (a feature is either a vertex or an edge).
  *   
  *  in stands for "incoming"
  *  out stands for "outgoing"
@@ -181,15 +181,15 @@ typedef union C3D_FeaturePair
 
 typedef struct C3D_Contact 
 {
-	C3D_FVec position;               //World coordinate contact position
+	u8 warmStarted;                  //Used for debug rendering.
 	float penetration;               //Depth of penetration from collision
 	float normalImpulse;             //Accumulated normal impulse.
 	float tangentImpulse[2];         //Accumulated friction impulse. Tangent, because it's the opposite direction.
 	float bias;                      //Restitution + Baumgarte Stabilization.
 	float normalMass;                //Normal constraint mass.
 	float tangentMass[2];            //Tangent constraint mass.
+	C3D_FVec position;               //World coordinate contact position
 	C3D_FeaturePair featurePair;     //Features on A and B for this contact position.
-	u8 warmStarted;                  //Used for debug rendering.
 } C3D_Contact;
 
 typedef struct C3D_ContactPair 
@@ -200,22 +200,22 @@ typedef struct C3D_ContactPair
 
 typedef struct C3D_Manifold
 {
-	struct C3D_Box* A;
-	struct C3D_Box* B;
+	bool sensor;
+	unsigned int contactsCount;
 	C3D_FVec normal;
 	C3D_FVec tangentVectors[2];
+	struct C3D_Box* A;
+	struct C3D_Box* B;
 	struct C3D_Contact contacts[8];
-	unsigned int contactsCount;
 	struct C3D_Manifold* next;
 	struct C3D_Manifold* previous;
-	bool sensor;
 } C3D_Manifold;
 
 typedef struct C3D_MassData 
 {
-	C3D_Mtx inertia;
-	C3D_FVec center;
 	float mass;
+	C3D_FVec center;
+	C3D_Mtx inertia;
 } C3D_MassData;
 
 typedef enum C3D_ContactConstraintFlag 
@@ -235,6 +235,9 @@ typedef struct C3D_ContactEdge
 
 typedef struct C3D_ContactConstraint 
 {
+	unsigned int flags;
+	float friction;
+	float restitution;
 	struct C3D_Box* A;
 	struct C3D_Box* B;
 	struct C3D_Body* bodyA;
@@ -243,10 +246,7 @@ typedef struct C3D_ContactConstraint
 	struct C3D_ContactEdge edgeB;
 	struct C3D_ContactConstraint* next;
 	struct C3D_ContactConstraint* previous;
-	float friction;
-	float restitution;
 	struct C3D_Manifold manifold;
-	unsigned int flags;
 } C3D_ContactConstraint;
 
 typedef struct C3D_ContactManager 
@@ -282,53 +282,53 @@ typedef enum C3D_BodyFlag
 
 typedef struct C3D_Body 
 {
-	C3D_Mtx inverseInertiaModel;
-	C3D_Mtx inverseInertiaWorld;
+	void* userData;
+	unsigned int layers;
+	unsigned int flags;
+	unsigned int islandIndex;
+	float linearDamping;
+	float angularDamping;
+	float sleepTime;
+	float gravityScale;
 	float mass;
 	float inverseMass;
 	C3D_FVec linearVelocity;
 	C3D_FVec angularVelocity;
 	C3D_FVec force;
 	C3D_FVec torque;
-	struct C3D_Transform transform;
-	C3D_FQuat quaternion;
 	C3D_FVec localCenter;
 	C3D_FVec worldCenter;
-	float sleepTime;
-	float gravityScale;
-	unsigned int layers;
-	unsigned int flags;
+	C3D_FQuat quaternion;
+	C3D_Mtx inverseInertiaModel;
+	C3D_Mtx inverseInertiaWorld;
+	struct C3D_Transform transform;
 	struct C3D_Box* boxes;
-	void* userData;
 	struct C3D_Scene* scene;
 	struct C3D_Body* next;
 	struct C3D_Body* previous;
-	unsigned int islandIndex;
-	float linearDamping;
-	float angularDamping;
 	struct C3D_ContactEdge* contactList;
 } C3D_Body;
 
 typedef struct C3D_DynamicAABBTree 
 {
 	int root;
-	C3D_DynamicAABBTreeNode* nodes;
+	int freeList;
 	unsigned int count;
 	unsigned int capacity;
-	int freeList;
+	C3D_DynamicAABBTreeNode* nodes;
 } C3D_DynamicAABBTree;
 
 typedef struct C3D_Broadphase 
 {
-	struct C3D_ContactManager* contactManager;
-	struct C3D_ContactPair* pairBuffer;
+	int* moveBuffer;
 	unsigned int pairCount;
 	unsigned int pairCapacity;
-	int* moveBuffer;
 	unsigned int moveCount;
 	unsigned int moveCapacity;
-	struct C3D_DynamicAABBTree* tree;
 	unsigned int currentIndex;
+	struct C3D_DynamicAABBTree* tree;
+	struct C3D_ContactManager* contactManager;
+	struct C3D_ContactPair* pairBuffer;
 } C3D_Broadphase;
 
 typedef struct C3D_Scene 
@@ -865,14 +865,14 @@ bool Broadphase_CanOverlap(C3D_Broadphase* broadphase, int A, int B);
 /**
  * @brief The default callback function for C3D_Broadphase objects to query. Should not be used outside of C3D_Broadphase objects. Usually, the callback is from user-defined callbacks, and not the default callback.
  * @note: 
- * RandyGaul: When a query is made the query will find all matches, and this exhaustive search takes CPU time. Sometimes all the user cares about is a particular query "hit", and then wants to terminate the rest of the search immediately. For example I shoot a ray into the world to check and see if I hit *anything*, so I would pass in false to first result.
+ * RandyGaul: When a query is made, the query will find all matches, and this exhaustive search takes CPU time. Sometimes all the user cares about is a particular query "hit", and then wants to terminate the rest of the search immediately. For example I shoot a ray into the world to check and see if I hit *anything*, so I would pass in false to first result.
  *            The tree callback can be the one given by default, or be a user supplied callback. The internal callback you pointed out in q3BroadPhase.h is interested in *all* broadphase reports, and will always return true.
  *            This is why you sometimes hear negative comments about using callbacks. Generally they are complicated and difficult to follow. They ruin typical code-flow. 
  *            Callbacks are an abstraction, and the abstraction cost is harder to follow code. In the physics engine case since it stores a lot of memory and users want to peek into the memory the 
  *            callbacks seem necessary, but I have never been happy with them. 
  * @param[in,out]     broadphase       The resulting C3D_Broadphase object.
  * @param[in]         index            The C3D_ContactPair object index to check on.
- * @return True, because the callback is interested in all broadphase reports.
+ * @return True, because the default callback is interested in all broadphase reports.
  */
 bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index);
 
@@ -1042,6 +1042,8 @@ void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack);
  */
 void Manager_AddContact(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB);
 
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactManager.h
+
 /**************************************************
  * Contact Manifold Functions (Manifold)
  **************************************************/
@@ -1054,18 +1056,32 @@ void Manager_AddContact(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* box
  */
 void Manifold_SetPair(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB);
 
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Contact.h
+
 /**************************************************
  * Contact Constraints Functions (Constraint)
  **************************************************/
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Contact.cpp#L41
-void Constraint_CollisionResponse(C3D_ContactConstraint* constraint);
+void Constraint_CollisionResponse(C3D_ContactConstraint* constraint); //SolveCollision
 
 /**************************************************
  * Contact Solver Functions (Solver)
  **************************************************/
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactSolver.h
+
+/**************************************************
+ * Collision Functions (Collision)
+ **************************************************/
+
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
+
+/**************************************************
+ * Island Functions (Island)
+ **************************************************/
+
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Island.h
 
 /**************************************************
  * Contact Listener Functions (C++ virtual function)
@@ -1082,3 +1098,5 @@ void ContactListener_EndContact(C3D_ContactListener* listener, const C3D_Contact
 /**************************************************
  * Scene Functions (Scene)
  **************************************************/
+
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.h
