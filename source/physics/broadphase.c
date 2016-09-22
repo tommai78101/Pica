@@ -88,7 +88,7 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
 			C3D_ContactPair* pair = broadphase->pairBuffer + i;
 			C3D_Box* boxA = (C3D_Box*) Tree_GetUserData(broadphase->tree, pair->A);
 			C3D_Box* boxB = (C3D_Box*) Tree_GetUserData(broadphase->tree, pair->B);
-			Manager_AddContact(broadphase->contactManager, boxA, boxB);
+			Manager_AddConstraint(broadphase->contactManager, boxA, boxB);
 			i++;
 			while (i < broadphase->pairCount)
 			{

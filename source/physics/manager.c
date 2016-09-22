@@ -10,7 +10,7 @@ void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack)
 	manager->contactListener = NULL;
 }
 
-void Manager_AddContact(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB)
+void Manager_AddConstraint(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB)
 {
 	C3D_Body* bodyA = boxA->body;
 	C3D_Body* bodyB = boxB->body;
@@ -68,4 +68,125 @@ void Manager_AddContact(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* box
 	Body_SetAwake(bodyA);
 	Body_SetAwake(bodyB);
 	manager->contactCount++;
+}
+
+void Manager_RemoveConstraint(C3D_ContactManager* manager, C3D_ContactConstraint* constraint)
+{
+	C3D_Body* bodyA = constraint->bodyA;
+	C3D_Body* bodyB = constraint->bodyB;
+	if (constraint->edgeA.previous)
+		constraint->edgeA.previous->next = constraint->edgeA.next;
+	if (constraint->edgeA.next)
+		constraint->edgeA.next->previous = constraint->edgeA.previous;
+	if (&constraint->edgeA == bodyA->contactList)
+		bodyA->contactList = constraint->edgeA.next;
+	if (constraint->edgeB.previous)
+		constraint->edgeB.previous->next = constraint->edgeB.next;
+	if (constraint->edgeB.next)
+		constraint->edgeB.next->previous = constraint->edgeB.previous;
+	if (&constraint->edgeB == bodyB->contactList)
+		bodyB->contactList = constraint->edgeB.next;
+	Body_SetAwake(bodyA);
+	Body_SetAwake(bodyB);
+	if (constraint->previous)
+		constraint->previous->next = constraint->next;
+	if (constraint->next)
+		constraint->next->previous = constraint->previous;
+	if (constraint == manager->contactList)
+		manager->contactList = constraint->next;
+	manager->contactCount--;
+	PhysicsPage_Deallocate(&manager->pageAllocator, constraint);
+}
+
+void Manager_RemoveConstraintsFromBody(C3D_ContactManager* manager, C3D_Body* body)
+{
+	C3D_ContactEdge* edge = body->contactList;
+	while (edge)
+	{
+		C3D_ContactEdge* next = edge->next;
+		Manager_RemoveConstraint(manager, edge->constraint);
+		edge = next;
+	}
+}
+
+void Manager_RemoveBodyFromBroadphase(C3D_ContactManager* manager, C3D_Body* body)
+{
+	C3D_Box* box = body->boxes;
+	while (box)
+	{
+		Broadphase_RemoveBox(manager->broadphase, box);
+		box = box->next;
+	}
+}
+
+void Manager_CollisionResponse(C3D_ContactManager* manager)
+{
+	C3D_ContactConstraint* constraint = manager->contactList;
+	while (constraint)
+	{
+		C3D_Box* boxA = constraint->A;
+		C3D_Box* boxB = constraint->B;
+		C3D_Body* bodyA = boxA->body;
+		C3D_Body* bodyB = boxB->body;
+		if (!Body_CanCollide(bodyA, bodyB))
+		{
+			C3D_ContactConstraint* next = constraint->next;
+			Manager_RemoveConstraint(manager, constraint);
+			constraint = next;
+			continue;
+		}
+		if (!Body_IsAwake(bodyA) && !Body_IsAwake(bodyB))
+		{
+			constraint = constraint->next;
+			continue;
+		}
+		if (!Broadphase_CanOverlap(manager->broadphase, boxA->broadPhaseIndex, boxB->broadPhaseIndex))
+		{
+			C3D_ContactConstraint* next = constraint->next;
+			Manager_RemoveConstraint(manager, constraint);
+			constraint = next;
+			continue;
+		}
+		C3D_Manifold* manifold = &constraint->manifold;
+		C3D_Manifold oldManifold = constraint->manifold;
+		C3D_FVec oldTangent0 = oldManifold.tangentVectors[0];
+		C3D_FVec oldTangent1 = oldManifold.tangentVectors[1];
+		Constraint_CollisionResponse(constraint);
+		FVec3_ComputeBasis(&manifold->normal, &manifold->tangentVectors[0], &manifold->tangentVectors[1]);
+		for (unsigned int i = 0; i < manifold->contactsCount; i++)
+		{
+			C3D_Contact* contact = manifold->contacts + i;
+			contact->tangentImpulse[0] = contact->tangentImpulse[1] = contact->normalImpulse = 0.0f;
+			u8 oldWarmStarted = contact->warmStarted;
+			contact->warmStarted = 0;
+			for (unsigned int j = 0; j < oldManifold.contactsCount; j++)
+			{
+				C3D_Contact* oldContact = oldManifold.contacts + j;
+				if (contact->featurePair.key == oldContact->featurePair.key)
+				{
+					contact->normalImpulse = oldContact->normalImpulse;
+					
+					C3D_FVec friction = FVec3_Add(FVec3_Scale(oldTangent0, oldContact->tangentImpulse[0]), FVec3_Scale(oldTangent1, oldContact->tangentImpulse[1]));
+					contact->tangentImpulse[0] = FVec3_Dot(friction, manifold->tangentVectors[0]);
+					contact->tangentImpulse[1] = FVec3_Dot(friction, manifold->tangentVectors[1]);
+					contact->warmStarted = oldWarmStarted > oldWarmStarted + 1 ? oldWarmStarted : oldWarmStarted + 1;
+					break;
+				}
+			}
+		}
+		if (manager->contactListener)
+		{
+			if ((constraint->flags & ConstraintFlag_Colliding) && !(constraint->flags & ConstraintFlag_WasColliding))
+				manager->contactListener->vmt->BeginContact(manager->contactListener, constraint);
+			else if (!(constraint->flags & ConstraintFlag_Colliding) && (constraint->flags & ConstraintFlag_WasColliding))
+				manager->contactListener->vmt->EndContact(manager->contactListener, constraint);
+		}
+		constraint = constraint->next;
+	}
+}
+
+void Manager_RenderConstraints(C3D_ContactManager* manager)
+{
+	// TODO: Unimplemented method.
+	// Reference: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactManager.cpp
 }

@@ -218,12 +218,12 @@ typedef struct C3D_MassData
 	C3D_Mtx inertia;
 } C3D_MassData;
 
-typedef enum C3D_ContactConstraintFlag 
+typedef enum C3D_ConstraintFlag 
 {
-	Colliding        = 0x00000001,
-	WasColliding     = 0x00000002,
-	ConstraintIsland = 0x00000004,
-} C3D_ContactConstraintFlag;
+	ConstraintFlag_Colliding        = 0x00000001,
+	ConstraintFlag_WasColliding     = 0x00000002,
+	ConstraintFlag_Island           = 0x00000004,
+} C3D_ConstraintFlag;
 
 typedef struct C3D_ContactEdge 
 {
@@ -342,15 +342,16 @@ typedef struct C3D_Scene
  */ 
 typedef struct C3D_ContactListener_FuncTable 
 {
+	void (*Init)(struct C3D_ContactListener*);
+	void (*Free)(struct C3D_ContactListener*);
 	void (*BeginContact)(struct C3D_ContactListener*, const C3D_ContactConstraint* constraint);
 	void (*EndContact)(struct C3D_ContactListener*, const C3D_ContactConstraint* constraint);
 } C3D_ContactListener_FuncTable;
 
 typedef struct C3D_ContactListener 
 {
-	C3D_ContactListener_FuncTable* virtualMethodTable;
+	C3D_ContactListener_FuncTable* vmt; // vmt:  Virtual Method Table
 } C3D_ContactListener;
-
 
 /**************************************************
  * Common Non-Standard Citro3D Functions 
@@ -783,6 +784,15 @@ bool Body_CanCollide(C3D_Body* this, const C3D_Body* other);
  */
 void Body_SetAwake(C3D_Body* body);
 
+/**
+ * @brief Checks if C3D_Body is in Awake state.
+ * @param[in,out]     body     The resulting C3D_Body object to check.
+ */
+static inline bool Body_IsAwake(C3D_Body* body) 
+{
+	return body->flags & BodyFlag_Awake ? true : false;
+}
+
 /**************************************************
  * Broadphase Functions (Broadphase)
  **************************************************/
@@ -1035,14 +1045,54 @@ bool Tree_Update(C3D_DynamicAABBTree* tree, int id, const C3D_AABB* aabb);
 void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack);
 
 /**
- * @brief Adds a contact where C3D_Box objects, boxA and boxB, are touching or overlapping each other.
+ * @brief Adds a C3D_ContactConstraint contact where C3D_Box objects, boxA and boxB, are touching or overlapping each other.
  * @param[in,out]      manager         The resulting C3D_ContactManager object.
  * @param[in]          boxA            The C3D_Box object to check for contacts.
  * @param[in]          boxB            The C3D_Box object to check for contacts.
  */
-void Manager_AddContact(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB);
+void Manager_AddConstraint(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB);
 
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactManager.h
+/**
+ * @brief Finds new C3D_ContactConstraints contact objects to work with.
+ * @param[in,out]        manager             The resulting C3D_ContactManager manager object.
+ */
+static inline void Manager_FindNewConstraints(C3D_ContactManager* manager)
+{
+	Broadphase_UpdatePairs(manager->broadphase);
+}
+
+/**
+ * @brief Removes the given C3D_ContactConstraint contact from the C3D_ContactManager manager object.
+ * @param[in,out]      manager               The resulting C3D_ContactManager manager object.
+ * @param[in]          constraint            The C3D_Contact object to remove from the C3D_ContactManager object.
+ */
+void Manager_RemoveConstraint(C3D_ContactManager* manager, C3D_ContactConstraint* constraint);
+
+/**
+ * @brief Removes all C3D_ContactConstraint contacts from the given C3D_Body object.
+ * @param[in,out]      manager             The resulting C3D_ContactManager manager object.
+ * @param[in]          body                The C3D_Body object whose C3D_ContactConstraints are to be removed from the C3D_ContactManager object.
+ */
+void Manager_RemoveConstraintsFromBody(C3D_ContactManager* manager, C3D_Body* body);
+
+/**
+ * @brief Removes the given C3D_Body object from the given C3D_Broadphase object.
+ * @param[in,out]      manager            The resulting C3D_ContactManager manager object.
+ * @param[in]          body               The C3D_Body object whose C3D_Box objects are to be removed from the C3D_Broadphase object.
+ */
+void Manager_RemoveBodyFromBroadphase(C3D_ContactManager* manager, C3D_Body* body);
+
+/**
+ * @brief Handles collision checks.
+ * @param[in,out]       manager           The resulting C3D_ContactManager manager object.
+ */
+void Manager_CollisionResponse(C3D_ContactManager* manager);
+
+/**
+ * @brief Render the C3D_ContactConstraint objects.
+ * @param[in,out]      manager        The resulting C3D_ContactManager manager object.
+ */
+void Manager_RenderConstraints(C3D_ContactManager* manager);
 
 /**************************************************
  * Contact Manifold Functions (Manifold)
@@ -1084,16 +1134,22 @@ void Constraint_CollisionResponse(C3D_ContactConstraint* constraint); //SolveCol
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Island.h
 
 /**************************************************
- * Contact Listener Functions (C++ virtual function)
+ * Contact Listener Functions (C++ virtual function, Listener)
  **************************************************/
 
-void ContactListener_Init(C3D_ContactListener* listener);
+void Listener_Init(C3D_ContactListener* this);
 
-void ContactListener_Free(C3D_ContactListener* listener);
+void Listener_Free(C3D_ContactListener* this);
 
-void ContactListener_BeginContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint);
+void Listener_BeginContact(C3D_ContactListener* this, const C3D_ContactConstraint* constraint);
 
-void ContactListener_EndContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint);
+void Listener_EndContact(C3D_ContactListener* this, const C3D_ContactConstraint* constraint);
+
+/**
+ * @note For all derived contact listener structs, it is up to the developer(s) to provide their own virtual method tables (VMTs).
+ *       They must use the following initialization format given below. After that, it is assigned to the derived contact listener struct's "vmt" variable. 
+ */
+C3D_ContactListener_FuncTable listener_default_vmt = {Listener_Init, Listener_Free, Listener_BeginContact, Listener_EndContact};
 
 /**************************************************
  * Scene Functions (Scene)

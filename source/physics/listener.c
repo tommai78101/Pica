@@ -1,21 +1,21 @@
 #include <c3d/physics.h>
 
-void ContactListener_Init(C3D_ContactListener* listener)
+void Listener_Init(C3D_ContactListener* listener)
+{
+	listener->vmt = &listener_default_vmt;
+}
+
+void Listener_Free(C3D_ContactListener* listener)
 {
 	//TODO: Unimplemented method.
 }
 
-void ContactListener_Free(C3D_ContactListener* listener)
+void Listener_BeginContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint)
 {
-	//TODO: Unimplemented method.
+	listener->vmt->BeginContact(listener, constraint);
 }
 
-void ContactListener_BeginContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint)
+void Listener_EndContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint)
 {
-	//TODO: Unimplemented method.
-}
-
-void ContactListener_EndContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint)
-{
-	//TODO: Unimplemented method.
+	listener->vmt->EndContact(listener, constraint);
 }
