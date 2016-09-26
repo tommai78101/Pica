@@ -1138,12 +1138,15 @@ void Constraint_CollisionResponse(C3D_ContactConstraint* constraint); //SolveCol
  *       current axis, and the normal will be replaced with the current axis' normal.
  *       See the following link to understand where the 15 axes were obtained from:
  *       http://gamedev.stackexchange.com/questions/44500/how-many-and-which-axes-to-use-for-3d-obb-collision-with-sat/
+ *       
+ *       The minimum penetration vector refers to how deep the two objects are intersecting each other. The deeper the penetration vector length, the harder the collision 
+ *       response will react.
  * @param[out]      axis             Pointer to a number representing an axis, from the 1st axis to the 15th axis (probably indexed from 0 to 14). 
  * @param[out]      axisNormal       The memory storing the normal associated with maxSeparation value.
- * @param[out]      maxSeparation    Defines the current maximal separation that defines the axis of minimum penetration.
+ * @param[out]      maxSeparation    Defines the current maximal separation that defines the axis of minimum penetration vector.
  * @param[in]       currentAxis      Current axis to evaluate.
  * @param[in]       normal           The current normal corresponding to the axis, currentAxis.
- * @param[in]       separation       Defines the current minimum penetration of an axis.
+ * @param[in]       separation       Defines the current minimum penetration vector of an axis.
  * @return True if the separation value is positive. False, if otherwise.
  */
 bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparation, int currentAxis, const C3D_FVec* normal, float separation)
