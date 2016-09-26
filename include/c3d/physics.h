@@ -1106,13 +1106,12 @@ void Manager_RenderConstraints(C3D_ContactManager* manager);
  */
 void Manifold_SetPair(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB);
 
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Contact.h
-
 /**************************************************
  * Contact Constraints Functions (Constraint)
  **************************************************/
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Contact.cpp#L41
+//       Needs Collision Functions first.
 void Constraint_CollisionResponse(C3D_ContactConstraint* constraint); //SolveCollision
 
 /**************************************************
@@ -1124,6 +1123,41 @@ void Constraint_CollisionResponse(C3D_ContactConstraint* constraint); //SolveCol
 /**************************************************
  * Collision Functions (Collision)
  **************************************************/
+
+/**
+ * @note 
+ * RandyGual: Each collision has two shapes, named by convention, called the incident and the reference shape. The reference shape can be thought 
+ * of as the "reference frame" for the collision scenario, and in my code, is also treated as the origin of the "reference space". So a lot of the 
+ * code operates from the point of view of the reference shape or the reference shape's face that collided with something on the incident shape.
+ */
+
+/**
+ * @brief Tracks an axis from a face and checks if the current separation value is positive, else re-adjusts the separation value, current axis, and current axis normal. 
+ * @note The Separating Axis Theorem is often used to check for collisions between two simple polygons, thus guessing this function is part of the Separating Axis Theorem. 
+ *       If the separation value is larger than the maximum separation value, the separation will become the maximum separation value, the axis will be replaced with the
+ *       current axis, and the normal will be replaced with the current axis' normal.
+ *       See the following link to understand where the 15 axes were obtained from:
+ *       http://gamedev.stackexchange.com/questions/44500/how-many-and-which-axes-to-use-for-3d-obb-collision-with-sat/
+ * @param[out]      axis             Pointer to a number representing an axis, from the 1st axis to the 15th axis (probably indexed from 0 to 14). 
+ * @param[out]      axisNormal       The memory storing the normal associated with maxSeparation value.
+ * @param[out]      maxSeparation    Defines the current maximal separation that defines the axis of minimum penetration.
+ * @param[in]       currentAxis      Current axis to evaluate.
+ * @param[in]       normal           The current normal corresponding to the axis, currentAxis.
+ * @param[in]       separation       Defines the current minimum penetration of an axis.
+ * @return True if the separation value is positive. False, if otherwise.
+ */
+bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparation, int currentAxis, const C3D_FVec* normal, float separation)
+{
+	if (separation > 0.0f)
+		return true;
+	if (separation > *maxSeparation)
+	{
+		*maxSeparation = separation;
+		*axis = currentAxis;
+		*axisNormal = *normal;
+	}
+	return false;
+}
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
 
