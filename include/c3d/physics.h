@@ -1173,114 +1173,20 @@ static inline void ClipVertex_Init(C3D_ClipVertex* clipVertex)
  * @param[in]       separation       Defines the current signed distance of overlap of an axis. It's not a vector nor a minimum.
  * @return True if the separation value is positive. False, if otherwise.
  */
-bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparation, int currentAxis, const C3D_FVec* normal, float separation)
-{
-	if (separation > 0.0f)
-		return true;
-	if (separation > *maxSeparation)
-	{
-		*maxSeparation = separation;
-		*axis = currentAxis;
-		*axisNormal = *normal;
-	}
-	return false;
-}
+bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparation, int currentAxis, const C3D_FVec* normal, float separation);
 
-void Collision_ComputeReferenceEdgeAndBasis(C3D_FVec* referenceShapeExtent, C3D_Transform* referenceTransform, C3D_FVec* normal, int separationAxis, u8* referenceEdgeIndex, 
-	                                        C3D_Mtx* referenceFaceRotationMatrix, C3D_FVec* alignedBasisExtent)
-{
-	Transform_MultiplyTransposeFVec(normal, &referenceTransform->rotation, normal);
-	if (separationAxis >= 3)
-		separationAxis -= 3;
-	switch (separationAxis)
-	{
-		case 0:
-			if (normal->x > 0.0f)
-			{
-				referenceEdgeIndex[0] = 1;
-				referenceEdgeIndex[1] = 8;
-				referenceEdgeIndex[2] = 7;
-				referenceEdgeIndex[3] = 9;
-				alignedBasisExtent->x = referenceShapeExtent->y;
-				alignedBasisExtent->y = referenceShapeExtent->z;
-				alignedBasisExtent->z = referenceShapeExtent->x;
-				referenceFaceRotationMatrix->r[0] = referenceTransform->rotation.r[1];
-				referenceFaceRotationMatrix->r[1] = referenceTransform->rotation.r[2];
-				referenceFaceRotationMatrix->r[2] = referenceTransform->rotation.r[0];
-			}
-			else 
-			{
-				referenceEdgeIndex[0] = 11;
-				referenceEdgeIndex[1] = 3;
-				referenceEdgeIndex[2] = 10;
-				referenceEdgeIndex[3] = 5;
-				alignedBasisExtent->x = referenceShapeExtent->z;
-				alignedBasisExtent->y = referenceShapeExtent->y;
-				alignedBasisExtent->z = referenceShapeExtent->x;
-				referenceFaceRotationMatrix->r[0] = referenceTransform->rotation.r[2];
-				referenceFaceRotationMatrix->r[1] = referenceTransform->rotation.r[1];
-				referenceFaceRotationMatrix->r[2] = FVec3_Scale(referenceTransform->rotation.r[0], -1.0f);
-			}
-			break;
-		case 1:
-			if (normal->y > 0.0f)
-			{
-				referenceEdgeIndex[0] = 0;
-				referenceEdgeIndex[1] = 1;
-				referenceEdgeIndex[2] = 2;
-				referenceEdgeIndex[3] = 3;
-				alignedBasisExtent->x = referenceShapeExtent->z;
-				alignedBasisExtent->y = referenceShapeExtent->x;
-				alignedBasisExtent->z = referenceShapeExtent->y;
-				referenceFaceRotationMatrix->r[0] = referenceTransform->rotation.r[2];
-				referenceFaceRotationMatrix->r[1] = referenceTransform->rotation.r[0];
-				referenceFaceRotationMatrix->r[2] = referenceTransform->rotation.r[1];
-			}
-			else 
-			{
-				referenceEdgeIndex[0] = 4;
-				referenceEdgeIndex[1] = 5;
-				referenceEdgeIndex[2] = 6;
-				referenceEdgeIndex[3] = 7;
-				alignedBasisExtent->x = referenceShapeExtent->z;
-				alignedBasisExtent->y = referenceShapeExtent->x;
-				alignedBasisExtent->z = referenceShapeExtent->y;
-				referenceFaceRotationMatrix->r[0] = referenceTransform->rotation.r[2];
-				referenceFaceRotationMatrix->r[1] = FVec3_Scale(referenceTransform->rotation.r[0], -1.0f);
-				referenceFaceRotationMatrix->r[2] = FVec3_Scale(referenceTransform->rotation.r[1], -1.0f);
-			}
-			break;
-		case 2:
-			if (normal->z > 0.0f)
-			{
-				referenceEdgeIndex[0] = 11;
-				referenceEdgeIndex[1] = 4;
-				referenceEdgeIndex[2] = 8;
-				referenceEdgeIndex[3] = 0;
-				alignedBasisExtent->x = referenceShapeExtent->y;
-				alignedBasisExtent->y = referenceShapeExtent->x;
-				alignedBasisExtent->z = referenceShapeExtent->z;
-				referenceFaceRotationMatrix->r[0] = FVec3_Scale(referenceTransform->rotation.r[1], -1.0f);
-				referenceFaceRotationMatrix->r[1] = referenceTransform->rotation.r[0];
-				referenceFaceRotationMatrix->r[2] = referenceTransform->rotation.r[2];
-			}
-			else 
-			{
-				referenceEdgeIndex[0] = 6;
-				referenceEdgeIndex[1] = 10;
-				referenceEdgeIndex[2] = 2;
-				referenceEdgeIndex[3] = 9;
-				alignedBasisExtent->x = referenceShapeExtent->y;
-				alignedBasisExtent->y = referenceShapeExtent->x;
-				alignedBasisExtent->z = referenceShapeExtent->z;
-				referenceFaceRotationMatrix->r[0] = FVec3_Scale(referenceTransform->rotation.r[1], -1.0f);
-				referenceFaceRotationMatrix->r[1] = FVec3_Scale(referenceTransform->rotation.r[0], -1.0f);
-				referenceFaceRotationMatrix->r[2] = FVec3_Scale(referenceTransform->rotation.r[2], -1.0f);
-			}
-			break;
-	}
-	referenceFaceRotationMatrix->r[3] = FVec4_New(0.0f, 0.0f, 0.0f, 1.0f);
-}
+/**
+ * @brief Sets the reference edge indices and calculates the basis matrix.
+ * @param[out]        referenceEdgeIndices            The output indices for the reference edges.
+ * @param[out]        basisMatrix                     The rotation matrix to represent the orientation of the reference face.
+ * @param[out]        alignedBasisExtent              The extent that's vector-aligned to the Cartesian axes within the space of the basis matrix.     
+ * @param[in]         normal                          The normal of the reference face.
+ * @param[in]         referenceShapeExtent            The extent of the reference shape.
+ * @param[in]         referenceTransform              The reference transformation.
+ * @param[in]         separationAxis                  The number representing the axis of separation.
+ */
+void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* basisMatrix, C3D_FVec* alignedBasisExtent, C3D_FVec* normal, 
+	                                        C3D_FVec* referenceShapeExtent, C3D_Transform* referenceTransform, int separationAxis);
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
 
