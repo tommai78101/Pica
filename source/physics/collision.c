@@ -23,7 +23,7 @@ void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* b
 	switch (separationAxis)
 	{
 		case 0:
-			if (newNormal->x > 0.0f)
+			if (newNormal.x > 0.0f)
 			{
 				referenceEdgeIndices[0] = 1;
 				referenceEdgeIndices[1] = 8;
@@ -51,7 +51,7 @@ void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* b
 			}
 			break;
 		case 1:
-			if (newNormal->y > 0.0f)
+			if (newNormal.y > 0.0f)
 			{
 				referenceEdgeIndices[0] = 0;
 				referenceEdgeIndices[1] = 1;
@@ -79,7 +79,7 @@ void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* b
 			}
 			break;
 		case 2:
-			if (newNormal->z > 0.0f)
+			if (newNormal.z > 0.0f)
 			{
 				referenceEdgeIndices[0] = 11;
 				referenceEdgeIndices[1] = 4;
