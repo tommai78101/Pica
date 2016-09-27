@@ -353,6 +353,12 @@ typedef struct C3D_ContactListener
 	C3D_ContactListener_FuncTable* vmt; // vmt:  Virtual Method Table
 } C3D_ContactListener;
 
+typedef struct C3D_ClipVertex
+{
+	C3D_FVec vertex;
+	C3D_FeaturePair featurePair;
+} C3D_ClipVertex;
+
 /**************************************************
  * Common Non-Standard Citro3D Functions 
  **************************************************/
@@ -1121,6 +1127,19 @@ void Constraint_CollisionResponse(C3D_ContactConstraint* constraint); //SolveCol
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactSolver.h
 
 /**************************************************
+ * Clip Vertex Functions (ClipVertex)
+ **************************************************/
+
+/**
+ * @brief Initializes the C3D_ClipVertex clip vertex.
+ * @param[in,out]     clipVertex     The resulting C3D_ClipVertex object.
+ */
+static inline void ClipVertex_Init(C3D_ClipVertex* clipVertex)
+{
+	clipVertex->featurePair.key = ~0;
+}
+
+/**************************************************
  * Collision Functions (Collision)
  **************************************************/
 
@@ -1136,17 +1155,22 @@ void Constraint_CollisionResponse(C3D_ContactConstraint* constraint); //SolveCol
  * @note The Separating Axis Theorem is often used to check for collisions between two simple polygons, thus guessing this function is part of the Separating Axis Theorem. 
  *       If the separation value is larger than the maximum separation value, the separation will become the maximum separation value, the axis will be replaced with the
  *       current axis, and the normal will be replaced with the current axis' normal.
+ *       
+ * RandyGual: The idea of SAT is to test all axes of potential separation by computing a signed overlap value that represents distance along the axis's normal vector. In 3D 
+ *            we deal with polyhedra, spheres and capsules. This means we can have faces that describe planes (with the normal as the axis), or pairs of edges that define a 
+ *            cross product, which defines the axis direction. In any case, we find signed overlap values, positive for separating and negative for overlapping. We want to 
+ *            find the smallest signed value. If this minimum is positive, no overlap occurred. If negative, this is the axis we want to resolve the collision upon.
+ *       
  *       See the following link to understand where the 15 axes were obtained from:
  *       http://gamedev.stackexchange.com/questions/44500/how-many-and-which-axes-to-use-for-3d-obb-collision-with-sat/
  *       
- *       The minimum penetration vector refers to how deep the two objects are intersecting each other. The deeper the penetration vector length, the harder the collision 
- *       response will react.
+ *       The magnitude of the separation does not determine how strong the collision response will be in a physically based simulation.
  * @param[out]      axis             Pointer to a number representing an axis, from the 1st axis to the 15th axis (probably indexed from 0 to 14). 
  * @param[out]      axisNormal       The memory storing the normal associated with maxSeparation value.
- * @param[out]      maxSeparation    Defines the current maximal separation that defines the axis of minimum penetration vector.
+ * @param[out]      maxSeparation    The current maximum separation. 
  * @param[in]       currentAxis      Current axis to evaluate.
  * @param[in]       normal           The current normal corresponding to the axis, currentAxis.
- * @param[in]       separation       Defines the current minimum penetration vector of an axis.
+ * @param[in]       separation       Defines the current signed distance of overlap of an axis. It's not a vector nor a minimum.
  * @return True if the separation value is positive. False, if otherwise.
  */
 bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparation, int currentAxis, const C3D_FVec* normal, float separation)
@@ -1160,6 +1184,102 @@ bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparati
 		*axisNormal = *normal;
 	}
 	return false;
+}
+
+void Collision_ComputeReferenceEdgeAndBasis(C3D_FVec* referenceShapeExtent, C3D_Transform* referenceTransform, C3D_FVec* normal, int separationAxis, u8* referenceEdgeIndex, 
+	                                        C3D_Mtx* referenceFaceRotationMatrix, C3D_FVec* alignedBasisExtent)
+{
+	Transform_MultiplyTransposeFVec(normal, &referenceTransform->rotation, normal);
+	if (separationAxis >= 3)
+		separationAxis -= 3;
+	switch (separationAxis)
+	{
+		case 0:
+			if (normal->x > 0.0f)
+			{
+				referenceEdgeIndex[0] = 1;
+				referenceEdgeIndex[1] = 8;
+				referenceEdgeIndex[2] = 7;
+				referenceEdgeIndex[3] = 9;
+				alignedBasisExtent->x = referenceShapeExtent->y;
+				alignedBasisExtent->y = referenceShapeExtent->z;
+				alignedBasisExtent->z = referenceShapeExtent->x;
+				referenceFaceRotationMatrix->r[0] = referenceTransform->rotation.r[1];
+				referenceFaceRotationMatrix->r[1] = referenceTransform->rotation.r[2];
+				referenceFaceRotationMatrix->r[2] = referenceTransform->rotation.r[0];
+			}
+			else 
+			{
+				referenceEdgeIndex[0] = 11;
+				referenceEdgeIndex[1] = 3;
+				referenceEdgeIndex[2] = 10;
+				referenceEdgeIndex[3] = 5;
+				alignedBasisExtent->x = referenceShapeExtent->z;
+				alignedBasisExtent->y = referenceShapeExtent->y;
+				alignedBasisExtent->z = referenceShapeExtent->x;
+				referenceFaceRotationMatrix->r[0] = referenceTransform->rotation.r[2];
+				referenceFaceRotationMatrix->r[1] = referenceTransform->rotation.r[1];
+				referenceFaceRotationMatrix->r[2] = FVec3_Scale(referenceTransform->rotation.r[0], -1.0f);
+			}
+			break;
+		case 1:
+			if (normal->y > 0.0f)
+			{
+				referenceEdgeIndex[0] = 0;
+				referenceEdgeIndex[1] = 1;
+				referenceEdgeIndex[2] = 2;
+				referenceEdgeIndex[3] = 3;
+				alignedBasisExtent->x = referenceShapeExtent->z;
+				alignedBasisExtent->y = referenceShapeExtent->x;
+				alignedBasisExtent->z = referenceShapeExtent->y;
+				referenceFaceRotationMatrix->r[0] = referenceTransform->rotation.r[2];
+				referenceFaceRotationMatrix->r[1] = referenceTransform->rotation.r[0];
+				referenceFaceRotationMatrix->r[2] = referenceTransform->rotation.r[1];
+			}
+			else 
+			{
+				referenceEdgeIndex[0] = 4;
+				referenceEdgeIndex[1] = 5;
+				referenceEdgeIndex[2] = 6;
+				referenceEdgeIndex[3] = 7;
+				alignedBasisExtent->x = referenceShapeExtent->z;
+				alignedBasisExtent->y = referenceShapeExtent->x;
+				alignedBasisExtent->z = referenceShapeExtent->y;
+				referenceFaceRotationMatrix->r[0] = referenceTransform->rotation.r[2];
+				referenceFaceRotationMatrix->r[1] = FVec3_Scale(referenceTransform->rotation.r[0], -1.0f);
+				referenceFaceRotationMatrix->r[2] = FVec3_Scale(referenceTransform->rotation.r[1], -1.0f);
+			}
+			break;
+		case 2:
+			if (normal->z > 0.0f)
+			{
+				referenceEdgeIndex[0] = 11;
+				referenceEdgeIndex[1] = 4;
+				referenceEdgeIndex[2] = 8;
+				referenceEdgeIndex[3] = 0;
+				alignedBasisExtent->x = referenceShapeExtent->y;
+				alignedBasisExtent->y = referenceShapeExtent->x;
+				alignedBasisExtent->z = referenceShapeExtent->z;
+				referenceFaceRotationMatrix->r[0] = FVec3_Scale(referenceTransform->rotation.r[1], -1.0f);
+				referenceFaceRotationMatrix->r[1] = referenceTransform->rotation.r[0];
+				referenceFaceRotationMatrix->r[2] = referenceTransform->rotation.r[2];
+			}
+			else 
+			{
+				referenceEdgeIndex[0] = 6;
+				referenceEdgeIndex[1] = 10;
+				referenceEdgeIndex[2] = 2;
+				referenceEdgeIndex[3] = 9;
+				alignedBasisExtent->x = referenceShapeExtent->y;
+				alignedBasisExtent->y = referenceShapeExtent->x;
+				alignedBasisExtent->z = referenceShapeExtent->z;
+				referenceFaceRotationMatrix->r[0] = FVec3_Scale(referenceTransform->rotation.r[1], -1.0f);
+				referenceFaceRotationMatrix->r[1] = FVec3_Scale(referenceTransform->rotation.r[0], -1.0f);
+				referenceFaceRotationMatrix->r[2] = FVec3_Scale(referenceTransform->rotation.r[2], -1.0f);
+			}
+			break;
+	}
+	referenceFaceRotationMatrix->r[3] = FVec4_New(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
