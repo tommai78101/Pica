@@ -20,6 +20,9 @@
 #define C3D_PHYSICSHEAP_MAX_SIZE 1024*20    //20KB
 #define C3D_PHYSICSHEAP_INIT_SIZE 1024      //1KB
 #define MACRO_POINTER_ADD(POINTER,BYTES) ((__typeof__(POINTER))(((u8 *)POINTER)+(BYTES)))
+#define COLLISION_IN_FRONT(a) ((a) < 0.0f)
+#define COLLISION_BEHIND(a) ((a) >= 0.0f)
+#define COLLISION_ON(a) ((a) < 0.005f && (a) > -0.005f)
 
 /**
  * @brief Only used for Dynamic AABB Tree objects and related nodes.
@@ -1187,6 +1190,24 @@ bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparati
  */
 void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* basisMatrix, C3D_FVec* alignedBasisExtent, C3D_FVec* normal, 
 	                                        C3D_FVec* referenceShapeExtent, C3D_Transform* referenceTransform, int separationAxis);
+
+/**
+ * @brief The reference face is a rectangle centered at the origin. To clip the incident face (of arbitrary orientation) we can look down the x and z axes of the reference face and 
+ *        do one-dimensional clipping routines (i.e. lerp) and perform an orthographic clip. It's just a orthographic clipping routine. So if we look down the y axis (straight into 
+ *        the reference face) with an orthographic perspective, we shave away all of the incident face that lay beyond the boundary of the reference face, which is a rectangle. To 
+ *        me, this is the most novel and interesting part.
+ * @note
+ * RandyGual: The purpose of this function is to clip the incident face against the reference face side planes. I know this is jargon to you, but that's OK. 
+ *            If someone really wants to know what the jargon is they can look it up without too much trouble, especially in the links I provide around the source code. 
+ * @param[out]       outClipVertex        The resulting C3D_ClipVertex to return;
+ * @param[in]        sign                 Computes one dimensional dot product. It's the sign of a plane.
+ * @param[in]        extent               The extent component of the object's bounding box's extent vector.
+ * @param[in]        axis                 The number representing the axis of separation, from Axis 1 to Axis 15 (0 ~ 14).
+ * @param[in]        inClipVertex         The C3D_ClipVertex to pass into.
+ * @param[in]        clipEdge             Determines which edge of this rectangle are we clipping against.
+ * @return The size of the C3D_ClipVertex object.
+ */
+int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float extent, int axis, int clipEdge, C3D_ClipVertex* inClipVertex, int inCount);
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
 

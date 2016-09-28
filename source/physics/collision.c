@@ -110,5 +110,43 @@ void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* b
 	basisMatrix->r[3] = FVec4_New(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
-
+int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float extent, int axis, int clipEdge, C3D_ClipVertex* inClipVertex, int inCount)
+{
+	int outCount = 0;
+	C3D_ClipVertex clipVertexA = inClipVertex[inCount - 1];
+	for (int i = 0; i < inCount; i++)
+	{
+		C3D_ClipVertex tempClipVertex;
+		C3D_ClipVertex clipVertexB = inClipVertex[i];
+		float deltaClipVertexA = sign * clipVertexA.vertex[axis] - extent;
+		float deltaClipVertexB = sign * clipVertexB.vertex[axis] - extent;
+		if ((COLLISION_IN_FRONT(deltaClipVertexA) && COLLISION_IN_FRONT(deltaClipVertexB)) || COLLISION_ON(deltaClipVertexA) || COLLISION_ON(deltaClipVertexB))
+		{
+			assert(outCount < 8);
+			outClipVertex[outCount++] = clipVertexB;
+		}
+		else if (COLLISION_IN_FRONT(deltaClipVertexA) && COLLISION_BEHIND(deltaClipVertexB))
+		{
+			tempClipVertex.featurePair = clipVertexB.featurePair;
+			tempClipVertex.vertex = clipVertexA.vertex + FVec3_Scale(FVec3_Subtract(clipVertexB.vertex, clipVertexA.vertex), (deltaClipVertexA / (deltaClipVertexA - deltaClipVertexB)));
+			tempClipVertex.featurePair.outgoingReference = clipEdge;
+			tempClipVertex.featurePair.outgoingIncident = 0;
+			assert(outCount < 8);
+			outClipVertex[outCount++] = tempClipVertex;
+		}
+		else if (COLLISION_IN_FRONT(deltaClipVertexB) && COLLISION_BEHIND(deltaClipVertexA))
+		{
+			tempClipVertex.featurePair = clipVertexA.featurePair;
+			tempClipVertex.vertex = clipVertexA.vertex + FVec3_Scale(FVec3_Subtract(clipVertexB.vertex, clipVertexA.vertex), (deltaClipVertexA / (deltaClipVertexA - deltaClipVertexB)));
+			tempClipVertex.featurePair.incomingReference = clipEdge;
+			tempClipVertex.featurePair.incomingIncident = 0;
+			assert(outCount < 8);
+			outClipVertex[outCount++] = tempClipVertex;
+			assert(outCount < 8);
+			outClipVertex[outCount++] = clipVertexB;
+		}
+		clipVertexA = clipVertexB;
+	}
+	return outCount;
+}
 
