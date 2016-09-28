@@ -2,7 +2,7 @@
 
 void Listener_Init(C3D_ContactListener* listener)
 {
-	listener->vmt = &listener_default_vmt;
+	listener->vmt = &Listener_Default_VMT;
 }
 
 void Listener_Free(C3D_ContactListener* listener)

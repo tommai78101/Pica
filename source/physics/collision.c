@@ -118,8 +118,8 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
 	{
 		C3D_ClipVertex tempClipVertex;
 		C3D_ClipVertex clipVertexB = inClipVertex[i];
-		float deltaClipVertexA = sign * clipVertexA.vertex[axis] - extent;
-		float deltaClipVertexB = sign * clipVertexB.vertex[axis] - extent;
+		float deltaClipVertexA = sign * clipVertexA.vertex.c[3 - axis] - extent;
+		float deltaClipVertexB = sign * clipVertexB.vertex.c[3 - axis] - extent;
 		if ((COLLISION_IN_FRONT(deltaClipVertexA) && COLLISION_IN_FRONT(deltaClipVertexB)) || COLLISION_ON(deltaClipVertexA) || COLLISION_ON(deltaClipVertexB))
 		{
 			assert(outCount < 8);
@@ -128,7 +128,7 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
 		else if (COLLISION_IN_FRONT(deltaClipVertexA) && COLLISION_BEHIND(deltaClipVertexB))
 		{
 			tempClipVertex.featurePair = clipVertexB.featurePair;
-			tempClipVertex.vertex = clipVertexA.vertex + FVec3_Scale(FVec3_Subtract(clipVertexB.vertex, clipVertexA.vertex), (deltaClipVertexA / (deltaClipVertexA - deltaClipVertexB)));
+			tempClipVertex.vertex = FVec3_Add(clipVertexA.vertex, FVec3_Scale(FVec3_Subtract(clipVertexB.vertex, clipVertexA.vertex), (deltaClipVertexA / (deltaClipVertexA - deltaClipVertexB))));
 			tempClipVertex.featurePair.outgoingReference = clipEdge;
 			tempClipVertex.featurePair.outgoingIncident = 0;
 			assert(outCount < 8);
@@ -137,7 +137,7 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
 		else if (COLLISION_IN_FRONT(deltaClipVertexB) && COLLISION_BEHIND(deltaClipVertexA))
 		{
 			tempClipVertex.featurePair = clipVertexA.featurePair;
-			tempClipVertex.vertex = clipVertexA.vertex + FVec3_Scale(FVec3_Subtract(clipVertexB.vertex, clipVertexA.vertex), (deltaClipVertexA / (deltaClipVertexA - deltaClipVertexB)));
+			tempClipVertex.vertex = FVec3_Add(clipVertexA.vertex, FVec3_Scale(FVec3_Subtract(clipVertexB.vertex, clipVertexA.vertex), (deltaClipVertexA / (deltaClipVertexA - deltaClipVertexB))));
 			tempClipVertex.featurePair.incomingReference = clipEdge;
 			tempClipVertex.featurePair.incomingIncident = 0;
 			assert(outCount < 8);

@@ -1237,7 +1237,7 @@ void Listener_EndContact(C3D_ContactListener* this, const C3D_ContactConstraint*
  * @note For all derived contact listener structs, it is up to the developer(s) to provide their own virtual method tables (VMTs).
  *       They must use the following initialization format given below. After that, it is assigned to the derived contact listener struct's "vmt" variable. 
  */
-C3D_ContactListener_FuncTable listener_default_vmt = {Listener_Init, Listener_Free, Listener_BeginContact, Listener_EndContact};
+C3D_ContactListener_FuncTable Listener_Default_VMT = {Listener_Init, Listener_Free, Listener_BeginContact, Listener_EndContact};
 
 /**************************************************
  * Scene Functions (Scene)
