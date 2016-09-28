@@ -30,6 +30,38 @@
 static const int TREENODE_NULL = -1;
 
 /**************************************************
+ * Enumerations
+ **************************************************/
+
+typedef enum C3D_ConstraintFlag 
+{
+	ConstraintFlag_Colliding        = 0x00000001,
+	ConstraintFlag_WasColliding     = 0x00000002,
+	ConstraintFlag_Island           = 0x00000004,
+} C3D_ConstraintFlag;
+
+typedef enum C3D_BodyType 
+{
+	BodyType_Static,
+	BodyType_Dynamic,
+	BodyType_Kinematic
+} C3D_BodyType;
+
+typedef enum C3D_BodyFlag 
+{
+	BodyFlag_Awake         = 0x001,
+	BodyFlag_Active        = 0x002,
+	BodyFlag_AllowSleep    = 0x004,
+	BodyFlag_BodyIsland    = 0x010,
+	BodyFlag_Static        = 0x020,
+	BodyFlag_Dynamic       = 0x040,
+	BodyFlag_Kinematic     = 0x080,
+	BodyFlag_LockAxisX     = 0x100,
+	BodyFlag_LockAxisY     = 0x200,
+	BodyFlag_LockAxisZ     = 0x400,
+} C3D_BodyFlag;
+
+/**************************************************
  * Basic Structures
  **************************************************/
 
@@ -191,8 +223,8 @@ typedef struct C3D_Contact
 	float bias;                      //Restitution + Baumgarte Stabilization.
 	float normalMass;                //Normal constraint mass.
 	float tangentMass[2];            //Tangent constraint mass.
-	C3D_FVec position;               //World coordinate contact position
 	C3D_FeaturePair featurePair;     //Features on A and B for this contact position.
+	C3D_FVec position;               //World coordinate contact position
 } C3D_Contact;
 
 typedef struct C3D_ContactPair 
@@ -220,13 +252,6 @@ typedef struct C3D_MassData
 	C3D_FVec center;
 	C3D_Mtx inertia;
 } C3D_MassData;
-
-typedef enum C3D_ConstraintFlag 
-{
-	ConstraintFlag_Colliding        = 0x00000001,
-	ConstraintFlag_WasColliding     = 0x00000002,
-	ConstraintFlag_Island           = 0x00000004,
-} C3D_ConstraintFlag;
 
 typedef struct C3D_ContactEdge 
 {
@@ -261,27 +286,6 @@ typedef struct C3D_ContactManager
 	struct C3D_Broadphase* broadphase;
 	struct C3D_ContactListener* contactListener;
 } C3D_ContactManager;
-
-typedef enum C3D_BodyType 
-{
-	BodyType_Static,
-	BodyType_Dynamic,
-	BodyType_Kinematic
-} C3D_BodyType;
-
-typedef enum C3D_BodyFlag 
-{
-	BodyFlag_Awake         = 0x001,
-	BodyFlag_Active        = 0x002,
-	BodyFlag_AllowSleep    = 0x004,
-	BodyFlag_BodyIsland    = 0x010,
-	BodyFlag_Static        = 0x020,
-	BodyFlag_Dynamic       = 0x040,
-	BodyFlag_Kinematic     = 0x080,
-	BodyFlag_LockAxisX     = 0x100,
-	BodyFlag_LockAxisY     = 0x200,
-	BodyFlag_LockAxisZ     = 0x400,
-} C3D_BodyFlag;
 
 typedef struct C3D_Body 
 {
