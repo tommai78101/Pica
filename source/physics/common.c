@@ -10,6 +10,11 @@ C3D_FVec FVec3_Max(C3D_FVec lhs, C3D_FVec rhs)
 	return FVec3_New((lhs.x > rhs.x ? lhs.x : rhs.x), (lhs.y > rhs.y ? lhs.y : rhs.y), (lhs.z > rhs.z ? lhs.z : rhs.z));
 }
 
+C3D_FVec FVec3_Abs(C3D_FVec vector)
+{
+	return FVec3_New(fabsf(vector.x), fabsf(vector.y), fabsf(vector.z));
+}
+
 void FVec3_ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c)
 {
 	// See: http://box2d.org/2014/02/computing-a-basis/

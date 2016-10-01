@@ -387,6 +387,13 @@ C3D_FVec FVec3_Min(C3D_FVec lhs, C3D_FVec rhs);
 C3D_FVec FVec3_Max(C3D_FVec lhs, C3D_FVec rhs);
 
 /**
+ * @brief Obtain the C3D_FVec vector containing the absolute values of each element.
+ * @param[in]    vector        The original vector.
+ * @return The C3D_FVec vector with absolute values of each element. 
+ */
+C3D_FVec FVec3_Abs(C3D_FVec vector);
+
+/**
  * @brief See: http://box2d.org/2014/02/computing-a-basis/
  * @param[in]   a   A unit vector.
  * @param[out]  b   A unit vector perpendicular to unit vector, "a".
@@ -1194,6 +1201,15 @@ bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparati
  */
 void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* basisMatrix, C3D_FVec* alignedBasisExtent, C3D_FVec* normal, 
 	                                        C3D_FVec* referenceShapeExtent, C3D_Transform* referenceTransform, int separationAxis);
+
+/**
+ * @brief Computes the clipping information of the incident shape's face.
+ * @param[out]        outClipVertexArray     The array of C3D_ClipVertex objects, to store the clipping information into.
+ * @param[in]         incidentTransform      The local space to world space transformation of the incident shape.
+ * @param[in]         extent                 The extent of the incident shape. (I'm assuming this.)
+ * @param[in]         normal                 The normal of the incident shape's face.
+ */
+void Collision_ComputeIncidentFace(C3D_ClipVertex* outClipVertexArray, C3D_Transform* incidentTransform, C3D_FVec* extent, C3D_FVec* normal);
 
 /**
  * @brief The reference face is a rectangle centered at the origin. To clip the incident face (of arbitrary orientation) we can look down the x and z axes of the reference face and 

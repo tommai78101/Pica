@@ -13,6 +13,124 @@ bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparati
 	return false;
 }
 
+void Collision_ComputeIncidentFace(C3D_ClipVertex* outClipVertexArray, C3D_Transform* incidentTransform, C3D_FVec* extent, C3D_FVec* normal)
+{
+	C3D_FVec newNormal;
+	Transform_MultiplyTransposeFVec(&newNormal, &incidentTransform->rotation, normal);
+	newNormal = FVec3_Scale(newNormal, -1.0f);
+	C3D_FVec absoluteNormal = FVec3_Abs(newNormal);
+	if (absoluteNormal.x > absoluteNormal.y && absoluteNormal.x > absoluteNormal.z)
+	{
+		if (newNormal.x > 0.0f)
+		{
+			outClipVertexArray[0].vertex = FVec3_New(extent->x,  extent->y, -extent->z);
+			outClipVertexArray[1].vertex = FVec3_New(extent->x,  extent->y,  extent->z);
+			outClipVertexArray[2].vertex = FVec3_New(extent->x, -extent->y,  extent->z);
+			outClipVertexArray[3].vertex = FVec3_New(extent->x, -extent->y, -extent->z);
+			outClipVertexArray[0].featurePair.incomingIncident = 9;
+			outClipVertexArray[0].featurePair.outgoingIncident = 1;
+			outClipVertexArray[1].featurePair.incomingIncident = 1;
+			outClipVertexArray[1].featurePair.outgoingIncident = 8;
+			outClipVertexArray[2].featurePair.incomingIncident = 8;
+			outClipVertexArray[2].featurePair.outgoingIncident = 7;
+			outClipVertexArray[3].featurePair.incomingIncident = 7;
+			outClipVertexArray[3].featurePair.outgoingIncident = 9;
+		}
+		else 
+		{
+			outClipVertexArray[0].vertex = FVec3_New(-extent->x, -extent->y,  extent->z);
+			outClipVertexArray[1].vertex = FVec3_New(-extent->x,  extent->y,  extent->z);
+			outClipVertexArray[2].vertex = FVec3_New(-extent->x,  extent->y, -extent->z);
+			outClipVertexArray[3].vertex = FVec3_New(-extent->x, -extent->y, -extent->z);
+			outClipVertexArray[0].featurePair.incomingIncident = 5;
+			outClipVertexArray[0].featurePair.outgoingIncident = 11;
+			outClipVertexArray[1].featurePair.incomingIncident = 11;
+			outClipVertexArray[1].featurePair.outgoingIncident = 3;
+			outClipVertexArray[2].featurePair.incomingIncident = 3;
+			outClipVertexArray[2].featurePair.outgoingIncident = 10;
+			outClipVertexArray[3].featurePair.incomingIncident = 10;
+			outClipVertexArray[3].featurePair.outgoingIncident = 5;
+		}
+	}
+	else if (absoluteNormal.y > absoluteNormal.x && absoluteNormal.y > absoluteNormal.z)
+	{
+		if (newNormal.y > 0.0f)
+		{
+			outClipVertexArray[0].vertex = FVec3_New(-extent->x, extent->y,  extent->z);
+			outClipVertexArray[1].vertex = FVec3_New( extent->x, extent->y,  extent->z);
+			outClipVertexArray[2].vertex = FVec3_New( extent->x, extent->y, -extent->z);
+			outClipVertexArray[3].vertex = FVec3_New(-extent->x, extent->y, -extent->z);
+			outClipVertexArray[0].featurePair.incomingIncident = 3;
+			outClipVertexArray[0].featurePair.outgoingIncident = 0;
+			outClipVertexArray[1].featurePair.incomingIncident = 0;
+			outClipVertexArray[1].featurePair.outgoingIncident = 1;
+			outClipVertexArray[2].featurePair.incomingIncident = 1;
+			outClipVertexArray[2].featurePair.outgoingIncident = 2;
+			outClipVertexArray[3].featurePair.incomingIncident = 2;
+			outClipVertexArray[3].featurePair.outgoingIncident = 3;
+		}
+		else 
+		{
+			outClipVertexArray[0].vertex = FVec3_New( extent->x, -extent->y,  extent->z);
+			outClipVertexArray[1].vertex = FVec3_New(-extent->x, -extent->y,  extent->z);
+			outClipVertexArray[2].vertex = FVec3_New(-extent->x, -extent->y, -extent->z);
+			outClipVertexArray[3].vertex = FVec3_New( extent->x, -extent->y, -extent->z);
+			outClipVertexArray[0].featurePair.incomingIncident = 7;
+			outClipVertexArray[0].featurePair.outgoingIncident = 4;
+			outClipVertexArray[1].featurePair.incomingIncident = 4;
+			outClipVertexArray[1].featurePair.outgoingIncident = 5;
+			outClipVertexArray[2].featurePair.incomingIncident = 5;
+			outClipVertexArray[2].featurePair.outgoingIncident = 6;
+			
+			//RandyGual: These numbers came from a single master drawing, and are fairly arbitrary. They might be wrong, but I took pains to make sure they were correct.
+			//Original:
+			//outClipVertexArray[3].featurePair.incomingIncident = 5;
+			//outClipVertexArray[3].featurePair.outgoingIncident = 6;
+			//Modified:
+			outClipVertexArray[3].featurePair.incomingIncident = 6;
+			outClipVertexArray[3].featurePair.outgoingIncident = 7;
+		}   
+	}
+	else 
+	{
+		if (newNormal.z > 0.0f)
+		{
+			outClipVertexArray[0].vertex = FVec3_New(-extent->x,  extent->y, extent->z);
+			outClipVertexArray[1].vertex = FVec3_New(-extent->x, -extent->y, extent->z);
+			outClipVertexArray[2].vertex = FVec3_New( extent->x, -extent->y, extent->z);
+			outClipVertexArray[3].vertex = FVec3_New( extent->x,  extent->y, extent->z);
+			outClipVertexArray[0].featurePair.incomingIncident = 0;
+			outClipVertexArray[0].featurePair.outgoingIncident = 11;
+			outClipVertexArray[1].featurePair.incomingIncident = 11;
+			outClipVertexArray[1].featurePair.outgoingIncident = 4;
+			outClipVertexArray[2].featurePair.incomingIncident = 4;
+			outClipVertexArray[2].featurePair.outgoingIncident = 8;
+			outClipVertexArray[3].featurePair.incomingIncident = 8;
+			outClipVertexArray[3].featurePair.outgoingIncident = 0;
+		}
+		else 
+		{
+			outClipVertexArray[0].vertex = FVec3_New( extent->x, -extent->y, -extent->z);
+			outClipVertexArray[1].vertex = FVec3_New(-extent->x, -extent->y, -extent->z);
+			outClipVertexArray[2].vertex = FVec3_New(-extent->x,  extent->y, -extent->z);
+			outClipVertexArray[3].vertex = FVec3_New( extent->x,  extent->y, -extent->z);
+			outClipVertexArray[0].featurePair.incomingIncident = 9;
+			outClipVertexArray[0].featurePair.outgoingIncident = 6;
+			outClipVertexArray[1].featurePair.incomingIncident = 6;
+			outClipVertexArray[1].featurePair.outgoingIncident = 10;
+			outClipVertexArray[2].featurePair.incomingIncident = 10;
+			outClipVertexArray[2].featurePair.outgoingIncident = 2;
+			outClipVertexArray[3].featurePair.incomingIncident = 2;
+			outClipVertexArray[3].featurePair.outgoingIncident = 9;
+		}
+	}
+	for (int i = 0; i < 4; i++)
+	{
+		C3D_FVec tempVertex = Mtx_MultiplyFVec3(&incidentTransform->rotation, outClipVertexArray[i].vertex);
+		outClipVertexArray[i].vertex = FVec3_Add(tempVertex, incidentTransform->position);
+	}
+}
+
 void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* basisMatrix, C3D_FVec* alignedBasisExtent, C3D_FVec* normal, 
 	                                        C3D_FVec* referenceShapeExtent, C3D_Transform* referenceTransform, int separationAxis)
 {
