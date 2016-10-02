@@ -682,7 +682,8 @@ static inline void Transform_MultiplyTransposeFVec(C3D_FVec* out, const C3D_Mtx*
 }
 
 /**
- * @brief Shorthand version of multiplying the rotation matrix from the C3D_Transform with the vector, relative to the C3D_Transform position.
+ * @brief First obtain the difference from the vector to the transform's position, then multiply the transpose of the transform's rotation matrix with the difference. 
+ *        Shorthand version of multiplying the rotation matrix from the C3D_Transform with the vector, relative to the C3D_Transform position.
  * @param[out]    out           The resulting C3D_FVec vector.
  * @param[in]     transform     The C3D_Transform object to work with.
  * @param[in]     vector        The C3D_FVec vector relative to the C3D_Transform object's position.
@@ -1204,7 +1205,7 @@ void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* b
 
 /**
  * @brief Computes the clipping information of the incident shape's face.
- * @param[out]        outClipVertexArray     The array of C3D_ClipVertex objects, to store the clipping information into.
+ * @param[out]        outClipVertexArray     The array of C3D_ClipVertex objects, to store the clipping information into. Array size must be at least 4 elements.
  * @param[in]         incidentTransform      The local space to world space transformation of the incident shape.
  * @param[in]         extent                 The extent of the incident shape. (I'm assuming this.)
  * @param[in]         normal                 The normal of the incident shape's face.
@@ -1221,13 +1222,30 @@ void Collision_ComputeIncidentFace(C3D_ClipVertex* outClipVertexArray, C3D_Trans
  *            If someone really wants to know what the jargon is they can look it up without too much trouble, especially in the links I provide around the source code. 
  * @param[out]       outClipVertex        The resulting C3D_ClipVertex to return;
  * @param[in]        sign                 Computes one dimensional dot product. It's the sign of a plane.
- * @param[in]        extent               The extent component of the object's bounding box's extent vector.
+ * @param[in]        extentComponent      The extent component of the object's bounding box's extent vector.
  * @param[in]        axis                 The number representing the axis of separation, from Axis 1 to Axis 15 (0 ~ 14).
  * @param[in]        inClipVertex         The C3D_ClipVertex to pass into.
  * @param[in]        clipEdge             Determines which edge of this rectangle are we clipping against.
  * @return The size of the C3D_ClipVertex object.
  */
-int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float extent, int axis, int clipEdge, C3D_ClipVertex* inClipVertex, int inCount);
+int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float extentComponent, int axis, int clipEdge, C3D_ClipVertex* inClipVertex, int inCount);
+
+/**
+ * @brief Compute using Sutherland-Hodgman Clipping. See Collision_Orthographic() explanation for more info.
+ * @note Resources provided by Randy Gual:
+ *       http://www.randygaul.net/2013/10/27/sutherland-hodgman-clipping/
+ *       https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
+ * TODO: Explain and rename rPos variable.
+ * @param[out]      outClipVertices     An array of C3D_ClipVertex vertices, storing results from doing one-dimensional clipping routines. Array size should be 8.
+ * @param[out]      outDepths           An array of floats, storing the vector Z component depth differences of the incident face against the reference face.
+ * @param[in]       rPos                Reference face's position vertex. (Assuming)
+ * @param[in]       extent              The reference shape's extent.
+ * @param[in]       basis               The reference shape's basis matrix. 
+ * @param[in]       clipEdges           An array of the reference shape's clip edges. Array size should be 4.
+ * @param[in]       incident            An array of the incident shape's C3D_ClipVertex vertices. Array size should be 4.
+ * @return The number of incident vertices that are behind the reference shape's face.
+ */
+int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* rPos, C3D_FVec* extent, C3D_Mtx* basis, u8* clipEdges, C3D_ClipVertex* incident);
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
 
