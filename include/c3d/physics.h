@@ -1235,7 +1235,6 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
  * @note Resources provided by Randy Gual:
  *       http://www.randygaul.net/2013/10/27/sutherland-hodgman-clipping/
  *       https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
- * TODO: Explain and rename rPos variable.
  * @param[out]      outClipVertices           An array of C3D_ClipVertex vertices, storing results from doing one-dimensional clipping routines. Array size should be 8.
  * @param[out]      outDepths                 An array of floats, storing the vector Z component depth differences of the incident face against the reference face.
  * @param[in]       referenceFacePosition     Reference face's position vertex. (Assuming)
@@ -1246,6 +1245,31 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
  * @return The number of incident vertices that are behind the reference shape's face.
  */
 int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* referenceFacePosition, C3D_FVec* extent, C3D_Mtx* basis, u8* clipEdges, C3D_ClipVertex* incident);
+
+/**
+ * @brief Computes closest points between two lines in 3D space.
+ * @note RandyGual: Sometimes the shapes are called reference and incident shapes (by old notation!), and sometimes I just refer to them as A and B. P and Q define a 
+ *       line segment by two points. PA-QA, and PB-QB, are two different line segments, one from each shape, A and B.
+ *       
+ *       See reference (Closest Point of Approach, CPA): http://geomalgorithms.com/a07-_distance.html
+ * @param[out]          closestA           The closest point on reference shape, A.
+ * @param[out]          closestB           The closest point on incident shape, B.
+ * @param[in]           PA                 The P point on line segment, PQ, located on the reference shape, A.
+ * @param[in]           QA                 The Q point on line segment, PQ, located on the reference shape, A.
+ * @param[in]           PB                 The P point on line segment, PQ, located on the incident shape, B.
+ * @param[in]           QB                 The Q point on line segment, PQ, located on the incident shape, B.
+ */
+void Collision_EdgesContact(C3D_FVec* closestA, C3D_FVec* closestB, C3D_FVec* PA, C3D_FVec* QA, C3D_FVec* PB, C3D_FVec* QB);
+
+/**
+ * @brief Computes the support edge from local to world transform of a shape. The support edge goes from point A to point B.
+ * @param[out]         pointA              Point A on the line segment that goes from A to B.
+ * @param[out]         pointB              Point B on the line segment that goes from A to B.
+ * @param[in]          shapeTransform      The local to world transform of a shape we are computing the support of.
+ * @param[in]          extent              The shape's extent.
+ * @param[in]          normal              The support edge's normal.
+ */
+void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, C3D_Transform* shapeTransform, C3D_FVec* extent, C3D_FVec* normal);
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
 

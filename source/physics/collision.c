@@ -304,3 +304,67 @@ int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* 
 	assert(outCount <= 8);
 	return outCount;
 }
+
+void Collision_EdgesContact(C3D_FVec* closestA, C3D_FVec* closestB, C3D_FVec* PA, C3D_FVec* QA, C3D_FVec* PB, C3D_FVec* QB)
+{
+	C3D_FVec lineRayA = FVec3_Subtract(*QA, *PA);
+	C3D_FVec lineRayB = FVec3_Subtract(*QB, *PB);
+	C3D_FVec rayAB = FVec3_Subtract(*PA, *PB);
+	float a = FVec3_Dot(lineRayA, lineRayA);          //a >= 0, always.
+	float b = FVec3_Dot(lineRayA, lineRayB);
+	float c = FVec3_Dot(lineRayB, lineRayB);          //c >= 0, always.
+	float d = FVec3_Dot(lineRayA, rayAB);
+	float e = FVec3_Dot(lineRayB, rayAB);
+	float denominator = a * c - b * b;                //denominator >= 0, always. Got to make sure denominator isn't 0.0f.
+	float TA = (b * e - c * d) / denominator;
+	float TB = (b * TA + e) / c;
+	*closestA = FVec3_Add(*PA, FVec3_Scale(lineRayA, TA));
+	*closestB = FVec3_Add(*PB, FVec3_Scale(lineRayB, TB));
+}
+
+void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, C3D_Transform* shapeTransform, C3D_FVec* extent, C3D_FVec* normal)
+{
+	C3D_FVec newNormal; 
+	Transform_MultiplyTransposeFVec(&newNormal, &shapeTransform->rotation, normal);
+	C3D_FVec absoluteNormal = FVec3_Abs(newNormal);
+	C3D_FVec a;
+	C3D_FVec b;
+	
+	if (absoluteNormal.x > absoluteNormal.y)
+	{
+		if (absoluteNormal.y > absoluteNormal.z)
+		{
+			a = FVec3_New(extent->x, extent->y,  extent->z);
+			b = FVec3_New(extent->x, extent->y, -extent->z);
+		}
+		else 
+		{
+			a = FVec3_New(extent->x,  extent->y, extent->z);
+			b = FVec3_New(extent->x, -extent->y, extent->z);
+		}
+	}
+	else 
+	{
+		if (absoluteNormal.x > absoluteNormal.z)
+		{
+			a = FVec3_New(extent->x, extent->y,  extent->z);
+			b = FVec3_New(extent->x, extent->y, -extent->z);
+		}
+		else 
+		{
+			a = FVec3_New( extent->x, extent->y, extent->z);
+			b = FVec3_New(-extent->x, extent->y, extent->z);
+		}
+	}
+	float signX = newNormal.x >= 0.0f ? 1.0f : -1.0f;
+	float signY = newNormal.y >= 0.0f ? 1.0f : -1.0f;
+	float signZ = newNormal.z >= 0.0f ? 1.0f : -1.0f;
+	a.x *= signX;
+	a.y *= signY;
+	a.z *= signZ;
+	b.x *= signX;
+	b.y *= signY;
+	b.z *= signZ;
+	Transform_MultiplyTransformFVec(pointA, shapeTransform, &a);
+	Transform_MultiplyTransformFVec(pointB, shapeTransform, &b);
+}
