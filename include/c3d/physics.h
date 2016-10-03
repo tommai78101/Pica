@@ -1236,16 +1236,16 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
  *       http://www.randygaul.net/2013/10/27/sutherland-hodgman-clipping/
  *       https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
  * TODO: Explain and rename rPos variable.
- * @param[out]      outClipVertices     An array of C3D_ClipVertex vertices, storing results from doing one-dimensional clipping routines. Array size should be 8.
- * @param[out]      outDepths           An array of floats, storing the vector Z component depth differences of the incident face against the reference face.
- * @param[in]       rPos                Reference face's position vertex. (Assuming)
- * @param[in]       extent              The reference shape's extent.
- * @param[in]       basis               The reference shape's basis matrix. 
- * @param[in]       clipEdges           An array of the reference shape's clip edges. Array size should be 4.
- * @param[in]       incident            An array of the incident shape's C3D_ClipVertex vertices. Array size should be 4.
+ * @param[out]      outClipVertices           An array of C3D_ClipVertex vertices, storing results from doing one-dimensional clipping routines. Array size should be 8.
+ * @param[out]      outDepths                 An array of floats, storing the vector Z component depth differences of the incident face against the reference face.
+ * @param[in]       referenceFacePosition     Reference face's position vertex. (Assuming)
+ * @param[in]       extent                    The reference shape's extent.
+ * @param[in]       basis                     The reference shape's basis matrix. 
+ * @param[in]       clipEdges                 An array of the reference shape's clip edges. Array size should be 4.
+ * @param[in]       incident                  An array of the incident shape's C3D_ClipVertex vertices. Array size should be 4.
  * @return The number of incident vertices that are behind the reference shape's face.
  */
-int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* rPos, C3D_FVec* extent, C3D_Mtx* basis, u8* clipEdges, C3D_ClipVertex* incident);
+int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* referenceFacePosition, C3D_FVec* extent, C3D_Mtx* basis, u8* clipEdges, C3D_ClipVertex* incident);
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
 

@@ -268,7 +268,7 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
 	return outCount;
 }
 
-int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* rPos, C3D_FVec* extent, C3D_Mtx* basis, u8* clipEdges, C3D_ClipVertex* incident)
+int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* referenceFacePosition, C3D_FVec* extent, C3D_Mtx* basis, u8* clipEdges, C3D_ClipVertex* incident)
 {
 	int inCount = 4;
 	int outCount;
@@ -277,7 +277,7 @@ int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* 
 	C3D_FVec temp;
 	for (int i = 0; i < 4; i++)
 	{
-		temp = FVec3_Subtract(incident[i].vertex, *rPos);
+		temp = FVec3_Subtract(incident[i].vertex, *referenceFacePosition);
 		Transform_MultiplyTransposeFVec(&(in[i].vertex), basis, &temp);
 	}
 	outCount = Collision_Orthographic(out, 1.0f, extent->x, 0, clipEdges[0], in, inCount);
@@ -296,7 +296,7 @@ int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* 
 		float difference = in[i].vertex.z - extent->z;
 		if (difference <= 0.0f)
 		{
-			outClipVertices[outCount].vertex = FVec3_Add(Mtx_MultiplyFVec3(basis, in[i].vertex), *rPos);
+			outClipVertices[outCount].vertex = FVec3_Add(Mtx_MultiplyFVec3(basis, in[i].vertex), *referenceFacePosition);
 			outClipVertices[outCount].featurePair = in[i].featurePair;
 			outDepths[outCount++] = difference;
 		}
