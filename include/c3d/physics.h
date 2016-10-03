@@ -733,7 +733,8 @@ static inline void Box_SetSensorFlag(C3D_Box* const box, bool flag)
 
 /**
  * @brief Cast a ray
- * @note Randy Gaul: The entire function performs box to ray and finds the hit point. Using the transpose lets one solve ray to AABB and still get the correct results. Ray to AABB is easier than ray to OBB.
+ * @note RandyGaul: The entire function performs box to ray and finds the hit point. Using the transpose lets one solve ray to AABB and still get the 
+ *       correct results. Ray to AABB is easier than ray to OBB.
  */
 bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* const raycastData);
 
@@ -776,7 +777,8 @@ static inline float Box_MixFriction(const C3D_Box* A, const C3D_Box* B)
 }
 
 /**
- * @brief Obtain the total net coefficient of restitution from both C3D_Box objects. Restitution is how much of the kinetic energy remains for the objects to rebound from one another vs. how much is lost as heat.
+ * @brief Obtain the total net coefficient of restitution from both C3D_Box objects. Restitution is how much of the kinetic energy remains for the objects to 
+ *        rebound from one another vs. how much is lost as heat.
  * @note Restitution mixing. The idea is to use the maximum bounciness, so bouncy objects will never not bounce during collisions.
  * @param[in]         A           One of the C3D_Box objects to measure.
  * @param[in]         B           One of the other C3D_Box objects to measure.
@@ -894,11 +896,17 @@ void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb)
 bool Broadphase_CanOverlap(C3D_Broadphase* broadphase, int A, int B);
 
 /**
- * @brief The default callback function for C3D_Broadphase objects to query. Should not be used outside of C3D_Broadphase objects. Usually, the callback is from user-defined callbacks, and not the default callback.
+ * @brief The default callback function for C3D_Broadphase objects to query. Should not be used outside of C3D_Broadphase objects. Usually, the callback is from 
+ *        user-defined callbacks, and not the default callback.
  * @note: 
- * RandyGaul: When a query is made, the query will find all matches, and this exhaustive search takes CPU time. Sometimes all the user cares about is a particular query "hit", and then wants to terminate the rest of the search immediately. For example I shoot a ray into the world to check and see if I hit *anything*, so I would pass in false to first result.
- *            The tree callback can be the one given by default, or be a user supplied callback. The internal callback you pointed out in q3BroadPhase.h is interested in *all* broadphase reports, and will always return true.
- *            This is why you sometimes hear negative comments about using callbacks. Generally they are complicated and difficult to follow. They ruin typical code-flow. 
+ * RandyGaul: When a query is made, the query will find all matches, and this exhaustive search takes CPU time. Sometimes all the user cares about is a particular query 
+ *            "hit", and then wants to terminate the rest of the search immediately. For example I shoot a ray into the world to check and see if I hit *anything*, so I 
+ *            would pass in false to first result.
+ *            
+ *            The tree callback can be the one given by default, or be a user supplied callback. The internal callback you pointed out in q3BroadPhase.h is interested in 
+ *            *all* broadphase reports, and will always return true. This is why you sometimes hear negative comments about using callbacks. Generally they are complicated 
+ *            and difficult to follow. They ruin typical code-flow.
+ *             
  *            Callbacks are an abstraction, and the abstraction cost is harder to follow code. In the physics engine case since it stores a lot of memory and users want to peek into the memory the 
  *            callbacks seem necessary, but I have never been happy with them. 
  * @param[in,out]     broadphase       The resulting C3D_Broadphase object.
