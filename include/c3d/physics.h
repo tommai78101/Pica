@@ -409,6 +409,28 @@ void FVec3_ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
  */
 void Mtx_OuterProduct(C3D_Mtx* out, C3D_FVec* lhs, C3D_FVec* rhs);
 
+/**
+ * @brief Obtain the column vector from a C3D_Mtx matrix.
+ * @param[in]       in        The C3D_Mtx matrix to retrieve the column vector from.
+ * @param[in]       column    The column index of the C3D_Mtx matrix, in the range from 0 to 2 inclusive. (0 ~ 2)
+ * @return The column vector from the C3D_Mtx matrix. Size of vector is 3, which are X, Y and Z components.
+ */
+static inline C3D_FVec Mtx_Column3(C3D_Mtx* in, int column)
+{
+	return FVec4_New(in->r[0].c[column], in->r[1].c[column], in->r[2].c[column], 0.0f);
+}
+
+/**
+ * @brief Obtain the column vector from a C3D_Mtx matrix.
+ * @param[in]       in        The C3D_Mtx matrix to retrieve the column vector from.
+ * @param[in]       column    The column index of the C3D_Mtx matrix, in the range from 0 to 3 inclusive. (0 ~ 3)
+ * @return The column vector from the C3D_Mtx matrix. Size of vector is 4, which are X, Y, Z, and W components.
+ */
+static inline C3D_FVec Mtx_Column4(C3D_Mtx* in, int column)
+{
+	return FVec4_New(in->r[0].c[column], in->r[1].c[column], in->r[2].c[column], in->r[3].c[column]);
+}
+
 /**************************************************
  * Axis-aligned Bounding Box Functions (AABB)
  **************************************************/
@@ -1278,6 +1300,76 @@ void Collision_EdgesContact(C3D_FVec* closestA, C3D_FVec* closestB, C3D_FVec* PA
  * @param[in]          normal              The support edge's normal.
  */
 void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, C3D_Transform* shapeTransform, C3D_FVec* extent, C3D_FVec* normal);
+
+/**
+ * @brief C3D_Box to C3D_Box collision detection and response
+ * @note Available Resources:
+ *       Deriving OBB to OBB Intersection and Manifold Generation   -   http://www.randygaul.net/2014/05/22/deriving-obb-to-obb-intersection-sat/
+ * @param
+ */
+void Collision_BoxToBox(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB)
+{
+	C3D_Transform transformA = boxA->body->transform;
+	C3D_Transform transformB = boxB->body->transform;
+	C3D_Transform localA = boxA->localTransform;
+	C3D_Transform localB = boxB->localTransform;
+	Transform_Multiply(&transformA, &transformA, &localA);
+	Transform_Multiply(&transformB, &transformB, &localB);
+	C3D_FVec extentA = boxA->extent;
+	C3D_FVec extentB = boxB->extent;
+	C3D_Mtx tempMatrix;
+	Mtx_Copy(&tempMatrix, &transformA->rotation);
+	Mtx_Transpose(&tempMatrix);
+	C3D_Mtx collisionMatrix;
+	Mtx_Multiply(&collisionMatrix, &tempMatrix, &transformB->rotation);
+	C3D_Mtx absoluteCollisionMatrix;
+	bool isParallel = false;
+	const float kCosTolerance = 1.0e-6f;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			float value = fabsf(collisionMatrix.r[i].c[3-j]);
+			absoluteCollisionMatrix.r[i].c[3-j] = value;
+			if (value + kCosTolerance >= 1.0f)
+				isParallel = true;
+		}
+	}
+	C3D_FVec distanceCentersBA;
+	Transform_MultiplyTransposeFVec(&distanceCentersBA, &transformA->rotation, FVec3_Subtract(transformB->position, transformA->position));
+	float separation;
+	float maxA = -FLT_MAX;
+	float maxB = -FLT_MAX;
+	float maxEdge = -FLT_MAX;
+	int axisA = ~0;
+	int axisB = ~0;
+	int axisEdge = ~0;
+	C3D_FVec normalA;
+	C3D_FVec normalB;
+	C3D_FVec normalEdge;
+	separation = fabsf(distanceCentersBA.x) - (extentA.x + FVec3_Dot(Mtx_Column3(&absoluteCollisionMatrix, 0), extentB));
+	if (Collision_TrackFaceAxis(&axisA, &normalA, &maxA, 0, &transformA->rotation->r[0], separation))
+		return;
+	separation = fabsf(distanceCentersBA.y) - (extentA.y + FVec3_Dot(Mtx_Column3(&absoluteCollisionMatrix, 1), extentB));
+	if (Collision_TrackFaceAxis(&axisA, &normalA, &maxA, 1, &transformA->rotation->r[1], separation))
+		return;
+	separation = fabsf(distanceCentersBA.z) - (extentA.z + FVec3_Dot(Mtx_Column3(&absoluteCollisionMatrix, 2), extentB));
+	if (Collision_TrackFaceAxis(&axisA, &normalA, &maxA, 2, &transformA->rotation->r[2], separation))
+		return;
+	separation = fabsf(FVec3_Dot(distanceCentersBA, collisionMatrix.r[0])) - (extentB.x + FVec3_Dot(absoluteCollisionMatrix.r[0], extentA));
+	if (Collision_TrackFaceAxis(&axisB, &normalB, &maxB, 3, &transformB->rotation->r[0], separation))
+		return;
+	separation = fabsf(FVec3_Dot(distanceCentersBA, collisionMatrix.r[1])) - (extentB.y + FVec3_Dot(absoluteCollisionMatrix.r[1], extentA));
+	if (Collision_TrackFaceAxis(&axisB, &normalB, &maxB, 4, &transformB->rotation->r[1], separation))
+		return;
+	separation = fabsf(FVec3_Dot(distanceCentersBA, collisionMatrix.r[2])) - (extentB.z + FVec3_Dot(absoluteCollisionMatrix.r[2], extentA));
+	if (Collision_TrackFaceAxis(&axisB, &normalB, &maxB, 5, &transformB->rotation->r[2], separation))
+		return;
+	if (!isParallel)
+	{
+		// TODO: Complete the code inside this scope.
+	}
+}
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
 
