@@ -2,6 +2,10 @@
 
 citro3d is a library that provides an easy to use stateful interface to the PICA200 GPU of the Nintendo 3DS. It tries to expose hardware functionality in the way that is most natural and convenient to the GPU and the user, therefore deviating from openGL.
 
+# citro3d-physics
+
+citro3d contains the extra physics library that provides a lightweight alternative for physics-based simulation. Currently undergoing construction. Readme.md will be updated when necessary.
+
 # Setup
 
 citro3d can be built and installed using the following command:
