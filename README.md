@@ -4,7 +4,9 @@ citro3d is a library that provides an easy to use stateful interface to the PICA
 
 # citro3d-physics
 
-citro3d contains the extra physics library that provides a lightweight alternative for physics-based simulation. Currently undergoing construction. Readme.md will be updated when necessary.
+This project uses Citro3D, and contains the extra physics library extension providing a lightweight alternative for physics-based simulation. Currently undergoing construction. Readme.md will be updated when necessary.
+
+It is written in C.
 
 # Setup
 
