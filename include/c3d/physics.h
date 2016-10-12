@@ -236,7 +236,7 @@ typedef struct C3D_ContactPair
 typedef struct C3D_Manifold
 {
 	bool sensor;
-	unsigned int contactsCount;
+	int contactsCount;
 	C3D_FVec normal;
 	C3D_FVec tangentVectors[2];
 	struct C3D_Box* A;
@@ -1272,7 +1272,7 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
  * @param[in]       basis                     The reference shape's basis matrix. 
  * @param[in]       clipEdges                 An array of the reference shape's clip edges. Array size should be 4.
  * @param[in]       incident                  An array of the incident shape's C3D_ClipVertex vertices. Array size should be 4.
- * @return The number of incident vertices that are behind the reference shape's face.
+ * @return The number of incident vertices that are behind the reference shape's face. Value is always >= 0.
  */
 int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* referenceFacePosition, C3D_FVec* extent, C3D_Mtx* basis, u8* clipEdges, C3D_ClipVertex* incident);
 
@@ -1305,7 +1305,9 @@ void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, C3D_Transform* sh
  * @brief C3D_Box to C3D_Box collision detection and response
  * @note Available Resources:
  *       Deriving OBB to OBB Intersection and Manifold Generation   -   http://www.randygaul.net/2014/05/22/deriving-obb-to-obb-intersection-sat/
- * @param
+ * @param[out]        manifold         The C3D_Manifold object to generate and store the collision properties for the C3D_Box objects, Box A and Box B.
+ * @param[in]         boxA             The first C3D_Box object to collide with.
+ * @param[in]         boxB             The second C3D_Box object to collide with.
  */
 void Collision_BoxToBox(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB)
 {
@@ -1367,11 +1369,174 @@ void Collision_BoxToBox(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB)
 		return;
 	if (!isParallel)
 	{
-		// TODO: Complete the code inside this scope.
+		float resultA;
+		float resultB;
+		C3D_FVec tempVector;
+		resultA = extentA.y * absoluteCollisionMatrix.r[0].c[3-2] + extentA.z * absoluteCollisionMatrix.r[0].c[3-1];
+		resultB = extentB.y * absoluteCollisionMatrix.r[2].c[3-0] + extentB.z * absoluteCollisionMatrix.r[1].c[3-0];
+		separation = fabsf(distanceCentersBA.z * collisionMatrix.r[0].c[3-1] - distanceCentersBA.y * collisionMatrix.r[0].c[3-2]) - (resultA + resultB);
+		tempVector = FVec3_New(0.0f, -collisionMatrix.r[0].c[3-2], collisionMatrix.r[0].c[3-1]);
+		if (Collision_TrackFaceAxis(&axisEdge, &normalEdge, &maxEdge, 6, &tempVector, separation))
+			return;
+		resultA = extentA.y * absoluteCollisionMatrix.r[1].c[3-2] + extentA.z * absoluteCollisionMatrix.r[1].c[3-1];
+		resultB = extentB.x * absoluteCollisionMatrix.r[2].c[3-0] + extentB.z * absoluteCollisionMatrix.r[0].c[3-0];
+		separation = fabsf(distanceCentersBA.z * collisionMatrix.r[1].c[3-1] - distanceCentersBA.y * collisionMatrix.r[1].c[3-2]) - (resultA + resultB);
+		tempVector = FVec3_New(0.0f, -collisionMatrix.r[1].c[3-2], collisionMatrix.r[1].c[3-1]);
+		if (Collision_TrackFaceAxis(&axisEdge, &normalEdge, &maxEdge, 7, &tempVector, separation))
+			return;
+		resultA = extentA.y * absoluteCollisionMatrix.r[2].c[3-2] + extentA.z * absoluteCollisionMatrix.r[2].c[3-1];
+		resultB = extentB.x * absoluteCollisionMatrix.r[1].c[3-0] + extentB.y * absoluteCollisionMatrix.r[0].c[3-0];
+		separation = fabsf(distanceCentersBA.z * collisionMatrix.r[2].c[3-1] - distanceCentersBA.y * collisionMatrix.r[2].c[3-2]) - (resultA + resultB);
+		tempVector = FVec3_New(0.0f, -collisionMatrix.r[2].c[3-2], collisionMatrix.r[2].c[3-1]);
+		if (Collision_TrackFaceAxis(&axisEdge, &normalEdge, &maxEdge, 8, &tempVector, separation))
+			return;
+		resultA = extentA.x * absoluteCollisionMatrix.r[0].c[3-2] + extentA.z * absoluteCollisionMatrix.r[0].c[3-0];
+		resultB = extentB.y * absoluteCollisionMatrix.r[2].c[3-1] + extentB.z * absoluteCollisionMatrix.r[1].c[3-1];
+		separation = fabsf(distanceCentersBA.x * collisionMatrix.r[0].c[3-2] - distanceCentersBA.z * collisionMatrix.r[0].c[3-0]) - (resultA + resultB);
+		tempVector = FVec3_New(collisionMatrix.r[0].c[3-2], 0.0f, -collisionMatrix.r[0].c[3-0]);
+		if (Collision_TrackFaceAxis(&axisEdge, &normalEdge, &maxEdge, 9, &tempVector, separation))
+			return;
+		resultA = extentA.x * absoluteCollisionMatrix.r[1].c[3-2] + extentA.z * absoluteCollisionMatrix.r[1].c[3-0];
+		resultB = extentB.x * absoluteCollisionMatrix.r[2].c[3-1] + extentB.z * absoluteCollisionMatrix.r[0].c[3-1];
+		separation = fabsf(distanceCentersBA.x * collisionMatrix.r[1].c[3-2] - distanceCentersBA.z * collisionMatrix.r[1].c[3-0]) - (resultA + resultB);
+		tempVector = FVec3_New(collisionMatrix.r[1].c[3-2], 0.0f, -collisionMatrix.r[1].c[3-0]);
+		if (Collision_TrackFaceAxis(&axisEdge, &normalEdge, &maxEdge, 10, &tempVector, separation))
+			return;
+		resultA = extentA.x * absoluteCollisionMatrix.r[2].c[3-2] + extentA.z * absoluteCollisionMatrix.r[2].c[3-0];
+		resultB = extentB.x * absoluteCollisionMatrix.r[1].c[3-1] + extentB.y * absoluteCollisionMatrix.r[0].c[3-1];
+		separation = fabsf(distanceCentersBA.x * collisionMatrix.r[2].c[3-2] - distanceCentersBA.z * collisionMatrix.r[2].c[3-0]) - (resultA + resultB);
+		tempVector = FVec3_New(collisionMatrix.r[2].c[3-2], 0.0f, -collisionMatrix.r[2].c[3-0]);
+		if (Collision_TrackFaceAxis(&axisEdge, &normalEdge, &maxEdge, 11, &tempVector, separation))
+			return;
+		resultA = extentA.x * absoluteCollisionMatrix.r[0].c[3-1] + extentA.y * absoluteCollisionMatrix.r[0].c[3-0];
+		resultB = extentB.y * absoluteCollisionMatrix.r[2].c[3-2] + extentB.z * absoluteCollisionMatrix.r[1].c[3-2];
+		separation = fabsf(distanceCentersBA.y * collisionMatrix.r[0].c[3-0] - distanceCentersBA.x * collisionMatrix.r[0].c[3-1]) - (resultA + resultB);
+		tempVector = FVec3_New(-collisionMatrix.r[0].c[3-1], collisionMatrix.r[0].c[3-0], 0.0f);
+		if (Collision_TrackFaceAxis(&axisEdge, &normalEdge, &maxEdge, 12, &tempVector, separation))
+			return;
+		resultA = extentA.x * absoluteCollisionMatrix.r[1].c[3-1] + extentA.y * absoluteCollisionMatrix.r[1].c[3-0];
+		resultB = extentB.x * absoluteCollisionMatrix.r[2].c[3-2] + extentB.z * absoluteCollisionMatrix.r[0].c[3-2];
+		separation = fabsf(distanceCentersBA.y * collisionMatrix.r[1].c[3-0] - distanceCentersBA.x * collisionMatrix.r[1].c[3-1]) - (resultA + resultB);
+		tempVector = FVec3_New(-collisionMatrix.r[1].c[3-1], collisionMatrix.r[1].c[3-0], 0.0f);
+		if (Collision_TrackFaceAxis(&axisEdge, &normalEdge, &maxEdge, 13, &tempVector, separation))
+			return;
+		resultA = extentA.x * absoluteCollisionMatrix.r[2].c[3-1] + extentA.y * absoluteCollisionMatrix.r[2].c[3-0];
+		resultB = extentB.x * absoluteCollisionMatrix.r[1].c[3-2] + extentB.y * absoluteCollisionMatrix.r[0].c[3-2];
+		separation = fabsf(distanceCentersBA.y * collisionMatrix.r[2].c[3-0] - distanceCentersBA.x * collisionMatrix.r[2].c[3-1]) - (resultA + resultB);
+		tempVector = FVec3_New(-collisionMatrix.r[1].c[3-1], collisionMatrix.r[1].c[3-0], 0.0f);
+		if (Collision_TrackFaceAxis(&axisEdge, &normalEdge, &maxEdge, 14, &tempVector, separation))
+			return;
+	}
+	const float kRelativeTolerance = 0.95f;
+	const float kAbsoluteTolerance = 0.01f;
+	int axis;
+	float maxSeparation;
+	C3D_FVec normal;
+	float faceMax = maxA > maxB ? maxA : maxB;
+	if (kRelativeTolerance * maxEdge > faceMax + kAbsoluteTolerance)
+	{
+		axis = axisEdge;
+		maxSeparation = maxEdge;
+		normal = normalEdge;
+	}
+	else 
+	{
+		if (kRelativeTolerance * maxB > maxA + kAbsoluteTolerance)
+		{
+			axis = axisB;
+			maxSeparation = maxB;
+			normal = normalB;
+		}
+		else 
+		{
+			axis = axisA;
+			maxSeparation = maxA;
+			normal = normalA;
+		}
+	}
+	if (FVec3_Dot(normal, transformB->position) < 0.0f)
+		normal = FVec3_Scale(normal, -1.0f);
+	assert(axis != ~0);
+	if (axis < 6)
+	{
+		C3D_Transform referenceTransform;
+		C3D_Transform incidentTransform;
+		C3D_FVec referenceExtent;
+		C3D_FVec incidentExtent;
+		bool flip;
+		if (axis < 3)
+		{
+			referenceTransform = transformA;
+			incidentTransform = transformB;
+			referenceExtent = extentA;
+			incidentExtent = extentB;
+			flip = false;
+		}
+		else 
+		{
+			referenceTransform = transformB;
+			incidentTransform = transformA;
+			referenceExtent = extentB;
+			incidentExtent = extentA;
+			flip = true;
+			normal = FVec3_Scale(normal, -1.0f);
+		}
+		C3D_ClipVertex incidentVertices[4];
+		Collision_ComputeIncidentFace(incidentVertices, &incidentTransform, &incidentExtent, &normal);
+		u8 clipEdges[4];
+		C3D_Mtx basisMatrix;
+		C3D_FVec extent;
+		Collision_ComputeReferenceEdgeAndBasis(clipEdges, &basisMatrix, &extent, &normal, &referenceExtent, &referenceTransform, axis);
+		C3D_ClipVertex outClipVertices[8];
+		float depths[8];
+		int outCount = Collision_Clip(outClipVertices, depths, &referenceTransform.position, &extent, &basisMatrix, clipEdges, incidentVertices);
+		if (outCount)
+		{
+			manifold->contactsCount = outCount;
+			manifold->normal = flip ? FVec3_Scale(normal, -1.0f) : normal;
+			for (int i = 0; i < outCount; i++)
+			{
+				C3D_Contact* contactIterator = manifold->contacts + i;
+				C3D_FeaturePair pair = outClipVertices[i].featurePair;
+				if (flip)
+				{
+					u8 temp = pair.incomingIncident;
+					pair.incomingIncident = pair.incomingReference;
+					pair.incomingReference = temp;
+					temp = pair.outgoingIncident;
+					pair.outgoingIncident = pair.outgoingReference;
+					pair.outgoingReference = temp;
+				}
+				contactIterator->featurePair = outClipVertices[i].featurePair;
+				contactIterator->position = outClipVertices[i].vertex;
+				contactIterator->penetration = depths[i];
+			}
+		}
+	}
+	else 
+	{
+		normal = Mtx_MultiplyFVec3(&transformA->rotation, normal);
+		if (FVec3_Dot(normal, FVec3_Subtract(transformB.position, transformA.position)) < 0.0f)
+			normal = FVec3_Scale(normal, -1.0f);
+		C3D_FVec PA;
+		C3D_FVec QA;
+		C3D_FVec PB;
+		C3D_FVec QB;
+		C3D_FVec CA;
+		C3D_FVec CB;
+		Collision_SupportEdge(&PA, &QA, &transformA, extentA, normal);
+		Collision_SupportEdge(&PB, &QB, &transformB, extentB, FVec3_Scale(normal, -1.0f));
+		Collision_EdgesContact(&CA, &CB, &PA, &QA, &PB, &QB);
+		manifold->normal = normal;
+		manifold->contactsCount = 1;
+		C3D_Contact* contactIterator = manifold->contacts;
+		C3D_FeaturePair pair;
+		pair.key = axis;
+		contactIterator->featurePair = pair;
+		contactIterator->penetration = maxSeparation;
+		contactIterator->position = FVec3_Scale(FVec3_Add(CA, CB), 0.5f);
 	}
 }
-
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/collision/q3Collide.cpp
 
 /**************************************************
  * Island Functions (Island)
