@@ -23,11 +23,13 @@ VERSION	:=	$(CITRO3D_MAJOR).$(CITRO3D_MINOR).$(CITRO3D_PATCH)
 #---------------------------------------------------------------------------------
 TARGET		:=	citro3d
 BUILD		:=	build
-SOURCES		:=	source \
-				source/maths \
-				source/physics
+SOURCES		:=	citro3d/source \
+                source/physics                
 DATA		:=	data
-INCLUDES	:=	include
+INCLUDES	:=	citro3d/include \
+                citro3d/include/c3d \
+                include/c3d
+	
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -38,7 +40,7 @@ CFLAGS	:=	-g -Wall -Werror -O2 -mword-relocations \
 			-fomit-frame-pointer -ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS -DCITRO3D_BUILD
+CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 

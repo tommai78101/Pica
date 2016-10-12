@@ -1,3 +1,3 @@
-#include <c3d/physics.h>
+#include <physics.h>
 
 

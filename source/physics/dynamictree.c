@@ -1,4 +1,4 @@
-#include <c3d/physics.h>
+#include <physics.h>
 
 void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, int index)
 {

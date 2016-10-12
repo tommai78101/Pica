@@ -1,4 +1,4 @@
-#include <c3d/physics.h>
+#include <physics.h>
 
 void PhysicsStack_Init(C3D_PhysicsStack* out)
 {
