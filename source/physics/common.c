@@ -1,4 +1,4 @@
-#include <physics.h>
+#include "physics.h"
 
 C3D_FVec FVec3_Min(C3D_FVec lhs, C3D_FVec rhs)
 {
