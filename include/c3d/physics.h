@@ -1304,7 +1304,10 @@ void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, C3D_Transform* sh
 /**
  * @brief C3D_Box to C3D_Box collision detection and response
  * @note Available Resources:
- *       Deriving OBB to OBB Intersection and Manifold Generation   -   http://www.randygaul.net/2014/05/22/deriving-obb-to-obb-intersection-sat/
+ *       1. Deriving OBB to OBB Intersection and Manifold Generation, Randy Gual -    http://www.randygaul.net/2014/05/22/deriving-obb-to-obb-intersection-sat/
+ *       2. Modeling and Solving Constraints, GDC 2007 Lecture by Erin Catto -        http://box2d.org/files/GDC2007/GDC2007_Catto_Erin_Physics1.ppt
+ *       3. Contact Manifolds, GDC 2007 Lecture by Erin Catto -                       http://box2d.org/files/GDC2007/GDC2007_Catto_Erin_Physics2.ppt
+ *       4. Box2D Lite version download -                                             http://box2d.org/files/GDC2006/Box2D_Lite.zip
  * @param[out]        manifold         The C3D_Manifold object to generate and store the collision properties for the C3D_Box objects, Box A and Box B.
  * @param[in]         boxA             The first C3D_Box object to collide with.
  * @param[in]         boxB             The second C3D_Box object to collide with.
