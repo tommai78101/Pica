@@ -8,6 +8,13 @@ Yes, citro3d is spelled with a lowercase C.
 
 It is written in C programming language.
 
+**Why is the physics library depend on citro3d?**
+
+Two reasons:
+
+1. It relies heavily on the math functions integrated into citro3d.
+2. Ease of setting things up.
+
 # Setup
 
 citro3d can be built and installed using the following command:
