@@ -8,7 +8,7 @@ Yes, citro3d is spelled with a lowercase C.
 
 It is written in C programming language.
 
-**Why is the physics library depend on citro3d?**
+### Why does the physics library depend on citro3d?
 
 Two reasons:
 
