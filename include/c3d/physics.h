@@ -217,15 +217,15 @@ typedef union C3D_FeaturePair
 
 typedef struct C3D_Contact 
 {
-	u8 warmStarted;                  //Used for debug rendering.
-	float penetration;               //Depth of penetration from collision
-	float normalImpulse;             //Accumulated normal impulse.
-	float tangentImpulse[2];         //Accumulated friction impulse. Tangent, because it's the opposite direction.
-	float bias;                      //Restitution + Baumgarte Stabilization.
-	float normalMass;                //Normal constraint mass.
-	float tangentMass[2];            //Tangent constraint mass.
-	C3D_FeaturePair featurePair;     //Features on A and B for this contact position.
-	C3D_FVec position;               //World coordinate contact position
+	u8 warmStarted;                        //Used for debug rendering.
+	float penetration;                     //Depth of penetration from collision
+	float normalImpulse;                   //Accumulated normal impulse.
+	float tangentImpulse[2];               //Accumulated friction impulse. Tangent, because it's the opposite direction.
+	float bias;                            //Restitution + Baumgarte Stabilization.
+	float normalMass;                      //Normal constraint mass.
+	float tangentMass[2];                  //Tangent constraint mass.
+	C3D_FVec position;                     //World coordinate contact position
+	union C3D_FeaturePair featurePair;     //Features on A and B for this contact position.
 } C3D_Contact;
 
 typedef struct C3D_ContactPair 
@@ -278,12 +278,46 @@ typedef struct C3D_ContactConstraint
 	struct C3D_Manifold manifold;
 } C3D_ContactConstraint;
 
+typedef struct C3D_ContactState 
+{
+	float penetration;            //Depth of penetration from collision.
+	float normalImpulse;          //Accumulated normal impulse.
+	float tangentImpulse[2];      //Accumulated friction impulse.
+	float bias;                   //Restitution + Baumgarte Stabilization.
+	float normalMass;             //Normal constraint mass.
+	float tangentMass[2];         //Tangent constraint mass.
+	//TODO: Need to know what the letter r in rA, rB means, and what the rA, rB stands for.
+	//TODO: What does C.O.M. mean, and what do they refer to?
+	C3D_FVec rA;          //Vector from COM to contact position.
+	C3D_FVec rB;          //Vector from COM to contact position.
+	
+} C3D_ContactState;
+
+typedef struct C3D_ContactConstraintState 
+{
+	int contactCount;
+	int indexA; //TODO: Find out what indexA, indexB are.
+	int indexB;
+	float mA; //TODO: Find out what mA, mB are.
+	float mB;
+	float restitution;
+	float friction;
+	C3D_FVec tangentVectors[2];
+	C3D_FVec normal;                           //From shape A to shape B.
+	C3D_FVec centerA;
+	C3D_FVec centerB;
+	C3D_Mtx iA; //TODO: Find out what iA, iB are.
+	C3D_Mtx iB;
+	struct C3D_ContactState contactStates[8];
+	
+} C3D_ContactConstraintState;
+
 typedef struct C3D_ContactManager 
 {
 	int contactCount;
-	C3D_ContactConstraint* contactList;
-	C3D_PhysicsStack* stack;
-	C3D_PhysicsPage pageAllocator;
+	struct C3D_ContactConstraint* contactList;
+	struct C3D_PhysicsStack* stack;
+	struct C3D_PhysicsPage pageAllocator;
 	struct C3D_Broadphase* broadphase;
 	struct C3D_ContactListener* contactListener;
 } C3D_ContactManager;
@@ -323,7 +357,7 @@ typedef struct C3D_DynamicAABBTree
 	int freeList;
 	unsigned int count;
 	unsigned int capacity;
-	C3D_DynamicAABBTreeNode* nodes;
+	struct C3D_DynamicAABBTreeNode* nodes;
 } C3D_DynamicAABBTree;
 
 typedef struct C3D_Broadphase 
@@ -341,7 +375,7 @@ typedef struct C3D_Broadphase
 
 typedef struct C3D_Scene 
 {
-	C3D_ContactManager contactManager;
+	struct C3D_ContactManager contactManager;
 } C3D_Scene;
 
 /**
@@ -358,14 +392,46 @@ typedef struct C3D_ContactListener_FuncTable
 
 typedef struct C3D_ContactListener 
 {
-	C3D_ContactListener_FuncTable* vmt; // vmt:  Virtual Method Table
+	struct C3D_ContactListener_FuncTable* vmt; // vmt:  Virtual Method Table
 } C3D_ContactListener;
 
 typedef struct C3D_ClipVertex
 {
 	C3D_FVec vertex;
-	C3D_FeaturePair featurePair;
+	union C3D_FeaturePair featurePair;
 } C3D_ClipVertex;
+
+typedef struct C3D_VelocityState 
+{
+	C3D_FVec w;
+	C3D_FVec v;
+} C3D_VelocityState;
+
+typedef struct C3D_Island 
+{
+	bool allowSleep;
+	bool enableFriction;
+	int iterations;
+	unsigned int bodyCapacity;
+	unsigned int bodyCount;
+	unsigned int contactConstraintStateCount;
+	unsigned int contactConstraintStateCapacity;
+	float deltaTime;
+	C3D_FVec gravity;
+	struct C3D_Body** bodies;
+	struct C3D_VelocityState* velocityStates;
+	struct C3D_ContactConstraint** contactConstraints;
+	struct C3D_ContactConstraintState* contactConstraintStates;
+} C3D_Island;
+
+typedef struct C3D_ContactSolver 
+{
+	bool enableFriction;
+	unsigned int contactConstraintStateCount;
+	struct C3D_Island* island;
+	struct C3D_ContactConstraintState* contactConstraintStates;
+	struct C3D_VelocityState* velocityStates;
+} C3D_ContactSolver;
 
 /**************************************************
  * Common Non-Standard Citro3D Functions 
@@ -1162,14 +1228,29 @@ void Manifold_SetPair(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB);
  * Contact Constraints Functions (Constraint)
  **************************************************/
 
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Contact.cpp#L41
-//       Needs Collision Functions first.
-void Constraint_CollisionResponse(C3D_ContactConstraint* constraint); //SolveCollision
+/**
+ * @brief To generate contact information, and to solve collisions from a given C3D_Constraint object.
+ * @param[in,out]      constraint       A C3D_Constraint object to generate contact information with.
+ */
+void Constraint_CollisionResponse(C3D_ContactConstraint* constraint);
 
 /**************************************************
  * Contact Solver Functions (Solver)
  **************************************************/
 
+/**
+ * @brief Initializes the C3D_ContactSolver object using the given C3D_Island object.
+ * @param[out]      solver           The resulting C3D_ContactSolver object.
+ * @param[in]       island           The given C3D_Island object to initialize.
+ */
+void Solver_Init(C3D_ContactSolver* solver, C3D_Island* island)
+{
+	solver->island = island;
+	solver->contactConstraintStateCount = island->contactConstraintStateCount;
+	solver->contactConstraintStates = island->contactConstraintStates;
+	solver->velocityStates = island->velocityStates;
+	solver->enableFriction = island->enableFriction;
+}
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactSolver.h
 
 /**************************************************
@@ -1305,7 +1386,10 @@ void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, C3D_Transform* sh
 /**
  * @brief C3D_Box to C3D_Box collision detection and response
  * @note Available Resources:
- *       Deriving OBB to OBB Intersection and Manifold Generation   -   http://www.randygaul.net/2014/05/22/deriving-obb-to-obb-intersection-sat/
+ *       1. Deriving OBB to OBB Intersection and Manifold Generation, Randy Gual -    http://www.randygaul.net/2014/05/22/deriving-obb-to-obb-intersection-sat/
+ *       2. Modeling and Solving Constraints, GDC 2007 Lecture by Erin Catto -        http://box2d.org/files/GDC2007/GDC2007_Catto_Erin_Physics1.ppt
+ *       3. Contact Manifolds, GDC 2007 Lecture by Erin Catto -                       http://box2d.org/files/GDC2007/GDC2007_Catto_Erin_Physics2.ppt
+ *       4. Box2D Lite version download -                                             http://box2d.org/files/GDC2006/Box2D_Lite.zip
  * @param[out]        manifold         The C3D_Manifold object to generate and store the collision properties for the C3D_Box objects, Box A and Box B.
  * @param[in]         boxA             The first C3D_Box object to collide with.
  * @param[in]         boxB             The second C3D_Box object to collide with.

@@ -3,7 +3,24 @@
 void Constraint_CollisionResponse(C3D_ContactConstraint* constraint)
 {
 	constraint->manifold.contactsCount = 0;
-	// TODO: Wait until all collision functions are implemented, in order to continue this.
+	Collision_BoxToBox(&constraint->manifold, constraint->A, constraint->B);
+	if (constraint->manifold.contactsCount > 0)
+	{
+		if (constraint->flags & ConstraintFlag_Colliding)
+			constraint->flags |= ConstraintFlag_WasColliding;
+		else
+			constraint->flags |= ConstraintFlag_Colliding;
+	}
+	else 
+	{
+		if (constraint->flags & ConstraintFlag_Colliding)
+		{
+			constraint->flags &= ~ConstraintFlag_Colliding;
+			constraint->flags |= ConstraintFlag_WasColliding;
+		}
+		else
+			constraint->flags &= ~ConstraintFlag_WasColliding;
+	}
 }
 
 
