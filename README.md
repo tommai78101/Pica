@@ -1,12 +1,12 @@
-# citro3d
+# citro3d-physics (YET TO BE NAMED...)
+
+This project is a physics library extension for citro3D, providing a lightweight alternative for physics-based simulation. Currently undergoing construction. Readme.md will be updated when necessary.
 
 citro3d is a library that provides an easy to use stateful interface to the PICA200 GPU of the Nintendo 3DS. It tries to expose hardware functionality in the way that is most natural and convenient to the GPU and the user, therefore deviating from openGL.
 
-# citro3d-physics
+Yes, citro3d is spelled with a lowercase C.
 
-This project uses Citro3D, and contains the extra physics library extension providing a lightweight alternative for physics-based simulation. Currently undergoing construction. Readme.md will be updated when necessary.
-
-It is written in C.
+It is written in C programming language.
 
 # Setup
 
