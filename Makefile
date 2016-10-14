@@ -24,11 +24,11 @@ VERSION	:=	$(CITRO3D_MAJOR).$(CITRO3D_MINOR).$(CITRO3D_PATCH)
 TARGET		:=	citro3d
 BUILD		:=	build
 SOURCES		:=	citro3d/source \
-                source/physics                
+                source                
 DATA		:=	data
 INCLUDES	:=	citro3d/include \
                 citro3d/include/c3d \
-                include/c3d
+                include
 	
 
 #---------------------------------------------------------------------------------

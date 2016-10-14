@@ -101,9 +101,9 @@ void Solver_Solve(C3D_ContactSolver* solver)
 					lambda = contactState->tangentImpulse[k] - oldTangentImpulse;
 					C3D_FVec impulse = FVec3_Scale(constraintState->tangentVectors[k], lambda);
 					vAxisA = FVec3_Subtract(vAxisA, FVec3_Scale(impulse, constraintState->indexMassA));
-					wAxisA = FVec3_Subtract(wAxisA, Mtx_MultiplyFVec3(constraintState->inverseMassA, FVec3_Cross(contactState->radiusContactA, impulse)));
+					wAxisA = FVec3_Subtract(wAxisA, Mtx_MultiplyFVec3(&constraintState->inverseMassA, FVec3_Cross(contactState->radiusContactA, impulse)));
 					vAxisB = FVec3_Add(vAxisB, FVec3_Scale(impulse, constraintState->indexMassB));
-					wAxisB = FVec3_Add(wAxisB, Mtx_MultiplyFVec3(constraintState->inverseMassB, FVec3_Cross(contactState->radiusContactB, impulse)));
+					wAxisB = FVec3_Add(wAxisB, Mtx_MultiplyFVec3(&constraintState->inverseMassB, FVec3_Cross(contactState->radiusContactB, impulse)));
 				}
 			}
 			deltaImpulse = FVec3_Subtract(FVec3_Add(vAxisB, FVec3_Cross(wAxisB, contactState->radiusContactB)), FVec3_Add(vAxisA, FVec3_Cross(wAxisA, contactState->radiusContactA)));
@@ -114,9 +114,9 @@ void Solver_Solve(C3D_ContactSolver* solver)
 			lambda = contactState->normalImpulse - tempNormalImpulse;
 			C3D_FVec impulse = FVec3_Scale(constraintState->normal, lambda);
 			vAxisA = FVec3_Subtract(vAxisA, FVec3_Scale(impulse, constraintState->indexMassA));
-			wAxisA = FVec3_Subtract(wAxisA, Mtx_MultiplyFVec3(constraintState->inverseMassA, FVec3_Cross(contactState->radiusContactA, impulse)));
+			wAxisA = FVec3_Subtract(wAxisA, Mtx_MultiplyFVec3(&constraintState->inverseMassA, FVec3_Cross(contactState->radiusContactA, impulse)));
 			vAxisB = FVec3_Add(vAxisB, FVec3_Scale(impulse, constraintState->indexMassB));
-			wAxisB = FVec3_Add(wAxisB, Mtx_MultiplyFVec3(constraintState->inverseMassB, FVec3_Cross(contactState->radiusContactB, impulse)));
+			wAxisB = FVec3_Add(wAxisB, Mtx_MultiplyFVec3(&constraintState->inverseMassB, FVec3_Cross(contactState->radiusContactB, impulse)));
 		}
 		solver->velocityStates[constraintState->indexBodyA].v = vAxisA;
 		solver->velocityStates[constraintState->indexBodyA].w = wAxisA;
