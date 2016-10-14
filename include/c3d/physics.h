@@ -24,6 +24,10 @@
 #define COLLISION_IN_FRONT(a) ((a) < 0.0f)
 #define COLLISION_BEHIND(a) ((a) >= 0.0f)
 #define COLLISION_ON(a) ((a) < 0.005f && (a) > -0.005f)
+#define C3D_BAUMGARTE 0.2f
+#define C3D_SLEEP_ANGULAR ((1.0f/120.0f) * M_TAU)
+#define C3D_SLEEP_TIME 0.5f
+#define C3D_PENETRATION_SLOP 0.05f
 
 /**
  * @brief Only used for Dynamic AABB Tree objects and related nodes.
@@ -286,28 +290,26 @@ typedef struct C3D_ContactState
 	float bias;                   //Restitution + Baumgarte Stabilization.
 	float normalMass;             //Normal constraint mass.
 	float tangentMass[2];         //Tangent constraint mass.
-	//TODO: Need to know what the letter r in rA, rB means, and what the rA, rB stands for.
-	//TODO: What does C.O.M. mean, and what do they refer to?
-	C3D_FVec rA;          //Vector from COM to contact position.
-	C3D_FVec rB;          //Vector from COM to contact position.
+	C3D_FVec radiusContactA;      //Vector position point to the contact point relative to the shape A's center of mass. (C.O.M. is center of mass)
+	C3D_FVec radiusContactB;      //Vector position point to the contact point relative to the shape B's center of mass.
 	
 } C3D_ContactState;
 
 typedef struct C3D_ContactConstraintState 
 {
 	int contactCount;
-	int indexA; //TODO: Find out what indexA, indexB are.
-	int indexB;
-	float mA; //TODO: Find out what mA, mB are.
-	float mB;
+	int indexBodyA;           //Index of body A in the cache of C3D_Body object pointers.
+	int indexBodyB;           //Index of body B in the cache of C3D_Body object pointers.
+	float indexMassA;         //Index of mass A.
+	float indexMassB;         //Index of mass B.
 	float restitution;
 	float friction;
 	C3D_FVec tangentVectors[2];
-	C3D_FVec normal;                           //From shape A to shape B.
+	C3D_FVec normal;          //From shape A to shape B.
 	C3D_FVec centerA;
 	C3D_FVec centerB;
-	C3D_Mtx iA; //TODO: Find out what iA, iB are.
-	C3D_Mtx iB;
+	C3D_Mtx inverseMassA;     //Inverse mass of body A.
+	C3D_Mtx inverseMassB;     //Inverse mass of body B.
 	struct C3D_ContactState contactStates[8];
 	
 } C3D_ContactConstraintState;
@@ -1243,14 +1245,21 @@ void Constraint_CollisionResponse(C3D_ContactConstraint* constraint);
  * @param[out]      solver           The resulting C3D_ContactSolver object.
  * @param[in]       island           The given C3D_Island object to initialize.
  */
-void Solver_Init(C3D_ContactSolver* solver, C3D_Island* island)
-{
-	solver->island = island;
-	solver->contactConstraintStateCount = island->contactConstraintStateCount;
-	solver->contactConstraintStates = island->contactConstraintStates;
-	solver->velocityStates = island->velocityStates;
-	solver->enableFriction = island->enableFriction;
-}
+void Solver_Init(C3D_ContactSolver* solver, C3D_Island* island);
+
+/**
+ * @brief Releases the C3D_ContactSolver object to its original state, by shutting it down.
+ * @param[in,out]    solver          The resulting C3D_ContactSolver object.
+ */
+void Solver_Free(C3D_ContactSolver* solver);
+
+/**
+ * @brief Precalculates the C3D_ContactSolver object, so it will be ready when it is being solved.
+ * @param[in,out]       solver         The resulting C3D_ContactSolver object.
+ * @param[in]           deltaTime      Used for precalculating the bias factor of the contact states in the C3D_ContactSolver object.
+ */
+void Solver_PreSolve(C3D_ContactSolver* solver, float deltaTime);
+
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactSolver.h
 
 /**************************************************
