@@ -311,7 +311,6 @@ typedef struct C3D_ContactConstraintState
 	C3D_Mtx inverseMassA;     //Inverse mass of body A.
 	C3D_Mtx inverseMassB;     //Inverse mass of body B.
 	struct C3D_ContactState contactStates[8];
-	
 } C3D_ContactConstraintState;
 
 typedef struct C3D_ContactManager 
@@ -1260,7 +1259,11 @@ void Solver_Free(C3D_ContactSolver* solver);
  */
 void Solver_PreSolve(C3D_ContactSolver* solver, float deltaTime);
 
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactSolver.h
+/**
+ * @brief Calculates the C3D_ContactSolver object.
+ * @param[in,out]       solver         The resulting C3D_ContactSolver object.
+ */
+void Solver_Solve(C3D_ContactSolver* solver);
 
 /**************************************************
  * Clip Vertex Functions (ClipVertex)

@@ -62,13 +62,61 @@ void Solver_PreSolve(C3D_ContactSolver* solver, float deltaTime)
 				warmStartContact = FVec3_Add(FVec3_Scale(constraintState->tangentVectors[0], contactState->tangentImpulse[0]), warmStartContact);
 				warmStartContact = FVec3_Add(FVec3_Scale(constraintState->tangentVectors[1], contactState->tangentImpulse[1]), warmStartContact);
 			}
-			vAxisA = FVec3_Subtract(FVec3_Scale(warmStartContact, constraintState->indexMassA), vAxisA);
-			wAxisA = FVec3_Subtract(Mtx_MultiplyFVec3(&constraintState->inverseMassA, FVec3_Cross(contactState->radiusContactA, warmStartContact)), wAxisA);
-			vAxisB = FVec3_Add(FVec3_Scale(warmStartContact, constraintState->indexMassB), vAxisB);
-			wAxisB = FVec3_Add(Mtx_MultiplyFVec3(&constraintState->inverseMassB, FVec3_Cross(contactState->radiusContactB, warmStartContact)), wAxisB);
+			vAxisA = FVec3_Subtract(vAxisA, FVec3_Scale(warmStartContact, constraintState->indexMassA));
+			wAxisA = FVec3_Subtract(wAxisA, Mtx_MultiplyFVec3(&constraintState->inverseMassA, FVec3_Cross(contactState->radiusContactA, warmStartContact)));
+			vAxisB = FVec3_Add(vAxisB, FVec3_Scale(warmStartContact, constraintState->indexMassB));
+			wAxisB = FVec3_Add(wAxisB, Mtx_MultiplyFVec3(&constraintState->inverseMassB, FVec3_Cross(contactState->radiusContactB, warmStartContact)));
 			float deltaValue = FVec3_Dot(FVec3_Subtract(FVec3_Add(vAxisB, FVec3_Cross(wAxisB, contactState->radiusContactB)), FVec3_Add(vAxisA, FVec3_Cross(wAxisA, contactState->radiusContactA))), constraintState->normal);
 			if (deltaValue < -1.0f)
 				contactState->bias += -(constraintState->restitution) * deltaValue;
+		}
+		solver->velocityStates[constraintState->indexBodyA].v = vAxisA;
+		solver->velocityStates[constraintState->indexBodyA].w = wAxisA;
+		solver->velocityStates[constraintState->indexBodyB].v = vAxisB;
+		solver->velocityStates[constraintState->indexBodyB].w = wAxisB;
+	}
+}
+
+void Solver_Solve(C3D_ContactSolver* solver)
+{
+	for (unsigned int i = 0; i < solver->contactConstraintStateCount; i++)
+	{
+		C3D_ContactConstraintState* constraintState = solver->contactConstraintStates + i;
+		C3D_FVec vAxisA = solver->velocityStates[constraintState->indexBodyA].v;
+		C3D_FVec wAxisA = solver->velocityStates[constraintState->indexBodyA].w;
+		C3D_FVec vAxisB = solver->velocityStates[constraintState->indexBodyB].v;
+		C3D_FVec wAxisB = solver->velocityStates[constraintState->indexBodyB].w;
+		for (int j = 0; j < constraintState->contactCount; j++)
+		{
+			C3D_ContactState* contactState = constraintState->contactStates + j;
+			C3D_FVec deltaImpulse = FVec3_Subtract(FVec3_Add(vAxisB, FVec3_Cross(wAxisB, contactState->radiusContactB)), FVec3_Add(vAxisA, FVec3_Cross(wAxisA, contactState->radiusContactA)));
+			if (solver->enableFriction)
+			{
+				for (int k = 0; k < 2; k++)
+				{
+					float lambda = -FVec3_Dot(deltaImpulse, constraintState->tangentVectors[k]) * contactState->tangentMass[k];
+					float maxLambda = constraintState->friction * contactState->normalImpulse;
+					float oldTangentImpulse = contactState->tangentImpulse[k];
+					contactState->tangentImpulse[k] = oldTangentImpulse + lambda < -maxLambda ? -maxLambda : (oldTangentImpulse + lambda > maxLambda ? maxLambda : oldTangentImpulse + lambda);
+					lambda = contactState->tangentImpulse[k] - oldTangentImpulse;
+					C3D_FVec impulse = FVec3_Scale(constraintState->tangentVectors[k], lambda);
+					vAxisA = FVec3_Subtract(vAxisA, FVec3_Scale(impulse, constraintState->indexMassA));
+					wAxisA = FVec3_Subtract(wAxisA, Mtx_MultiplyFVec3(constraintState->inverseMassA, FVec3_Cross(contactState->radiusContactA, impulse)));
+					vAxisB = FVec3_Add(vAxisB, FVec3_Scale(impulse, constraintState->indexMassB));
+					wAxisB = FVec3_Add(wAxisB, Mtx_MultiplyFVec3(constraintState->inverseMassB, FVec3_Cross(contactState->radiusContactB, impulse)));
+				}
+			}
+			deltaImpulse = FVec3_Subtract(FVec3_Add(vAxisB, FVec3_Cross(wAxisB, contactState->radiusContactB)), FVec3_Add(vAxisA, FVec3_Cross(wAxisA, contactState->radiusContactA)));
+			float normalImpulse = FVec3_Dot(deltaImpulse, constraintState->normal);
+			float lambda = contactState->normalMass * (-normalImpulse + contactState->bias);
+			float tempNormalImpulse = contactState->normalImpulse;
+			contactState->normalImpulse = (tempNormalImpulse + lambda > 0.0f ? tempNormalImpulse + lambda : 0.0f);
+			lambda = contactState->normalImpulse - tempNormalImpulse;
+			C3D_FVec impulse = FVec3_Scale(constraintState->normal, lambda);
+			vAxisA = FVec3_Subtract(vAxisA, FVec3_Scale(impulse, constraintState->indexMassA));
+			wAxisA = FVec3_Subtract(wAxisA, Mtx_MultiplyFVec3(constraintState->inverseMassA, FVec3_Cross(contactState->radiusContactA, impulse)));
+			vAxisB = FVec3_Add(vAxisB, FVec3_Scale(impulse, constraintState->indexMassB));
+			wAxisB = FVec3_Add(wAxisB, Mtx_MultiplyFVec3(constraintState->inverseMassB, FVec3_Cross(contactState->radiusContactB, impulse)));
 		}
 		solver->velocityStates[constraintState->indexBodyA].v = vAxisA;
 		solver->velocityStates[constraintState->indexBodyA].w = wAxisA;
