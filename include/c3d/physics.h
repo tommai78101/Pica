@@ -381,7 +381,6 @@ typedef struct C3D_Scene
 
 /**
  * @note Taken from: http://stackoverflow.com/questions/3113583/how-could-one-implement-c-virtual-functions-in-c
- * TODO: Continue working on this virtual struct object.
  */ 
 typedef struct C3D_ContactListener_FuncTable 
 {
@@ -924,7 +923,6 @@ void Broadphase_Init(C3D_Broadphase* out, C3D_ContactManager* const contactManag
 void Broadphase_Free(C3D_Broadphase* out);
 
 /**
- * TODO: Need help explaining this.
  * @brief Inserts the index of the C3D_DynamicAABBTreeNode node object into the broadphase, and marking the node "moved".
  * @param[in,out]    broadphase        The resulting C3D_Broadphase object for moving the index value in the move buffer.
  * @param[in]        index             The C3D_DynamicAABBTreeNode node index in the C3D_DynamicAABBTree tree of the broadphase.
@@ -1253,7 +1251,7 @@ void Solver_Init(C3D_ContactSolver* solver, C3D_Island* island);
 void Solver_Free(C3D_ContactSolver* solver);
 
 /**
- * @brief Precalculates the C3D_ContactSolver object, so it will be ready when it is being solved.
+ * @brief Precalculates the C3D_ContactSolver object, so it will be ready when it is being solved. Also, precalculates (Jm^-1)*(Jt) for contact and friction constraints
  * @param[in,out]       solver         The resulting C3D_ContactSolver object.
  * @param[in]           deltaTime      Used for precalculating the bias factor of the contact states in the C3D_ContactSolver object.
  */
@@ -1412,7 +1410,7 @@ void Collision_BoxToBox(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB);
  * Island Functions (Island)
  **************************************************/
 
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Island.h
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Island.cpp
 
 /**************************************************
  * Contact Listener Functions (C++ virtual function, Listener)
@@ -1436,4 +1434,4 @@ C3D_ContactListener_FuncTable Listener_Default_VMT = {Listener_Init, Listener_Fr
  * Scene Functions (Scene)
  **************************************************/
 
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.h
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.cpp

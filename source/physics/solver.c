@@ -38,7 +38,7 @@ void Solver_PreSolve(C3D_ContactSolver* solver, float deltaTime)
 		for (int j = 0; j < constraintState->contactCount; j++)
 		{
 			C3D_ContactState* contactState = constraintState->contactStates + j;
-			C3D_FVec contactPointA_Cross_normal = FVec3_Cross(contactState->radiusContactA, constraintState->normal); // Precalculate JM^-1JT for contact and friction constraints
+			C3D_FVec contactPointA_Cross_normal = FVec3_Cross(contactState->radiusContactA, constraintState->normal);
 			C3D_FVec contactPointB_Cross_normal = FVec3_Cross(contactState->radiusContactB, constraintState->normal);
 			float netMass = constraintState->indexMassA + constraintState->indexMassB;
 			float totalMass[2];
