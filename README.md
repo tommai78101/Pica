@@ -1,4 +1,4 @@
-# citro3d-physics (YET TO BE NAMED...)
+# Pica
 
 **(Under Construction / Project Not Complete)**
 
@@ -21,7 +21,7 @@ Two reasons:
 
 # Setup
 
-citro3d can be built and installed using the following command:
+Pica (and citro3d altogether) can be built and installed using the following command:
 
     make install
 
