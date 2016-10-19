@@ -43,3 +43,7 @@ Pica (and citro3d altogether) can be built and installed using the following com
      must not be misrepresented as being the original software.
   3. This notice may not be removed or altered from any source
      distribution.
+
+# Additional Credits
+
+Thanks to LinkBlaBla for the project name, Pica.
