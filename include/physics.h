@@ -905,6 +905,15 @@ static inline bool Body_IsAwake(C3D_Body* body)
 	return body->flags & BodyFlag_Awake ? true : false;
 }
 
+/**
+ * @brief Applies linear force to the C3D_Body object, and sets the Awake flag on the C3D_Body object.
+ * @param[in,out]      body        The resulting C3D_Body object.
+ * @param[in]          force       The force vector. Needs to be normalized first. 
+ */
+void Body_ApplyLinearForce(C3D_Body* body, C3D_FVec* force);
+
+// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Body.cpp
+
 /**************************************************
  * Broadphase Functions (Broadphase)
  **************************************************/
@@ -1409,6 +1418,19 @@ void Collision_BoxToBox(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB);
 /**************************************************
  * Island Functions (Island)
  **************************************************/
+
+void Island_Solve(C3D_Island* island)
+{
+	for (unsigned int i = 0; i < island->bodyCount; i++)
+	{
+		C3D_Body* body = island->bodies[i];
+		C3D_VelocityState* velocityState = island->velocityStates + i;
+		if (body->flags & BodyFlag_Dynamic)
+		{
+			
+		}
+	}
+}
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Island.cpp
 
