@@ -19,3 +19,9 @@ void Body_SetAwake(C3D_Body* body)
 		body->sleepTime = 0.0f;
 	}
 }
+
+void Body_ApplyLinearForce(C3D_Body* body, C3D_FVec* force)
+{
+	body->force = FVec3_Add(body->force, FVec3_Scale(body->force, body->mass));
+	Body_SetAwake(body);
+}
