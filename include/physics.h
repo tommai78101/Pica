@@ -13,7 +13,7 @@
  */
 
 /**************************************************
- * Defines
+ * Constants / Defines
  **************************************************/
 
 //May need to change the stack and heap size to different values.
@@ -28,6 +28,11 @@
 #define C3D_SLEEP_ANGULAR ((1.0f/120.0f) * M_TAU)
 #define C3D_SLEEP_TIME 0.5f
 #define C3D_PENETRATION_SLOP 0.05f
+
+/**
+ * @brief Only used for Dynamic AABB Tree objects and related nodes.
+ */
+static const int TREENODE_NULL = -1;
 
 /**************************************************
  * Enumerations
@@ -60,41 +65,6 @@ typedef enum C3D_BodyFlag
 	BodyFlag_LockAxisY     = 0x200,
 	BodyFlag_LockAxisZ     = 0x400,
 } C3D_BodyFlag;
-
-/**************************************************
- * Constants
- **************************************************/
-
-/**
- * @brief Only used for Dynamic AABB Tree objects and related nodes.
- */
-static const int TREENODE_NULL = -1;
-
-/**
- * @brief Only used for C3D_Body body objects. The entire struct contains constant struct members, used for initializing an empty C3D_Body object.
- */
-static const struct                                                                                                                                                                                                                             
-{                                                                                                                                                                                                                                        
-	bool allowSleep;              //= true;                          // Toggles to let the C3D_Body body assume a non-moving state by sleeping, which can greatly reduce CPU usage.                                                      
-	bool awake;                   //= true;                          // Initial sleep state. True means "awake".                                                                                                                         
-	bool active;                  //= true;                          // The C3D_Body body can start out inactive and just sits in memory.                                                                                                
-	bool lockAxisX;               //= false;                         // Locked rotation on the X axis.                                                                                                                                   
-	bool lockAxisY;               //= false;                         // Locked rotation on the Y axis.                                                                                                                                   
-	bool lockAxisZ;               //= false;                         // Locked rotation on the Z axis.                                                                                                                                   
-	void* userData;               //= NULL;                          // Use to store application specific data.                                                                                                                          
-	int collisionLayers;          //= 0x00000001;                    // Bitmask of collision layers. C3D_Body bodies matching at least one layer can collide.                                                                            
-	float radianAngle;            //= 0.0f;                          // Initial world transformation, in radians.                                                                                                                        
-	float gravityScale;           //= 1.0f;                          // Convenient scale values for gravity in the X, Y, and Z axis directions.                                                                                          
-	float linearDamping;          //= 0.0f;                          // Friction when moving on the X, Y, and Z axis.                                                                                                                    
-	float angularDamping;         //= 0.1f;                          // Friction when rotating around an origin by applying torque.                                                                                                      
-	C3D_FVec axis;                //= FVec3_New(0.0f, 0.0f, 0.0f);   // Initial world transformation.                                                                                                                                    
-	C3D_FVec position;            //= FVec3_New(0.0f, 0.0f, 0.0f);   // Initial world transformation, associating with translation.                                                                                                      
-	C3D_FVec linearVelocity;      //= FVec3_New(0.0f, 0.0f, 0.0f);   // Initial linear velocity in world space.                                                                                                                          
-	C3D_FVec angularVelocity;     //= FVec3_New(0.0f, 0.0f, 0.0f);   // Initial angular velocity in world space.                                                                                                                         
-	enum C3D_BodyType bodyType;   //= BodyType_Static;               // Static, dynamic, or kinematic. Static bodies never move or integrate, has infinite mass, and are very CPU efficient.                                             
-	                                                                 // Dynamic bodies with zero mass are defaulted to a mass of 1. Kinematic bodies have infinite mass, but *do* integrate                                              
-                                                                     // and move around, and do not resolve any collisions.                                                                                                              
-} C3D_BodyConstants = {true, true, true, false, false, false, NULL, 0x00000001, 0.0f, 1.0f, 0.0f, 0.1f, {{0.0f, 0.0f, 0.0f, 0.0f}}, {{0.0f, 0.0f, 0.0f, 0.0f}}, {{0.0f, 0.0f, 0.0f, 0.0f}}, {{0.0f, 0.0f, 0.0f, 0.0f}}, BodyType_Static};
 
 /**************************************************
  * Basic Structures
@@ -352,6 +322,31 @@ typedef struct C3D_ContactManager
 	struct C3D_Broadphase* broadphase;
 	struct C3D_ContactListener* contactListener;
 } C3D_ContactManager;
+
+typedef struct C3D_BodyParameters 
+{
+	bool allowSleep;              //= true;                          // Toggles to let the C3D_Body body assume a non-moving state by sleeping, which can greatly reduce CPU usage.                                                      
+	bool awake;                   //= true;                          // Initial sleep state. True means "awake".
+	bool active;                  //= true;                          // The C3D_Body body can start out inactive and just sits in memory.
+	bool lockAxisX;               //= false;                         // Locked rotation on the X axis.
+	bool lockAxisY;               //= false;                         // Locked rotation on the Y axis.
+	bool lockAxisZ;               //= false;                         // Locked rotation on the Z axis.
+	void* userData;               //= NULL;                          // Use to store application specific data.
+	unsigned int collisionLayers; //= 0x00000001;                    // Bitmask of collision layers. C3D_Body bodies matching at least one layer can collide.
+	float radianAngle;            //= 0.0f;                          // Initial world transformation, in radians.
+	float gravityScale;           //= 1.0f;                          // Convenient scale values for gravity in the X, Y, and Z axis directions.
+	float linearDamping;          //= 0.0f;                          // Friction when moving on the X, Y, and Z axis.
+	float angularDamping;         //= 0.1f;                          // Friction when rotating around an origin by applying torque.
+	C3D_FVec axis;                //= FVec3_New(0.0f, 0.0f, 0.0f);   // Initial world transformation.
+	C3D_FVec position;            //= FVec3_New(0.0f, 0.0f, 0.0f);   // Initial world transformation, associating with translation.
+	C3D_FVec linearVelocity;      //= FVec3_New(0.0f, 0.0f, 0.0f);   // Initial linear velocity in world space.
+	C3D_FVec angularVelocity;     //= FVec3_New(0.0f, 0.0f, 0.0f);   // Initial angular velocity in world space.
+	
+	// Static, dynamic, or kinematic. Static bodies never move or integrate, has infinite mass, and are very CPU efficient.
+	// Dynamic bodies with zero mass are defaulted to a mass of 1. Kinematic bodies have infinite mass, but *do* integrate
+	// and move around, and do not resolve any collisions.
+	enum C3D_BodyType bodyType;   //= BodyType_Static;
+} C3D_BodyParameters;
 
 typedef struct C3D_Body 
 {
@@ -909,20 +904,37 @@ static inline float Box_MixRestitution(const C3D_Box* A, const C3D_Box* B)
 }
 
 /**************************************************
+ * Physics Body Properties Structure. (BodyParameters)
+ **************************************************/
+
+/**
+ * @brief 
+ */
+void BodyParameters_Init(C3D_BodyParameters* parameters);
+
+/**************************************************
  * Physics Body Functions. (Body)
  **************************************************/
 
 /**
  * @brief Initializes the C3D_Body object. Only the default values are used.
- * @note To set the C3D_Body object properties, manually set the individual flags, or use the Body_SetAllFlags() helper function.
+ * @note To set the C3D_Body object properties, manually set the individual flags, use the other Body_Init() function, or use the Body_SetAllFlags() helper function.
  * @param[in,out]     body      The resulting C3D_Body object.
  */
 void Body_Init(C3D_Body* body, C3D_Scene* scene);
 
-/*
+/**
+ * @brief Initializes the C3D_Body object with a customized C3D_BodyParameter struct.
+ * @param[in,out]     body           The resulting C3D_Body object.
+ * @param[in]         scene          The C3D_Scene scene object.
+ * @param[in]         parameter      The C3D_BodyParameters struct to initialize the C3D_Body object with.
+ */
+void Body_ParametersInit(C3D_Body* body, C3D_Scene* scene, C3D_BodyParameters* parameters);
+
+/**
  * @brief Helper function to set C3D_Body object flags. Note that all of the flags will be cleared before setting the properties.
  * @param[out]         body           The resulting C3D_Body object with the new flags set.
- * @param[in]          type           The C3D_BodyType type of C3D_Body object: Dynamic, Kinematic, Static. Default is Dynamic.
+ * @param[in]          type           The C3D_BodyType type of C3D_Body object: Dynamic, Kinematic, Static. Default is Static.
  * @param[in]          sleep          Should C3D_Body object sleep?
  * @param[in]          awake          Should C3D_Body object awake?
  * @param[in]          active         Should C3D_Body object become active?
