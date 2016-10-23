@@ -187,6 +187,6 @@ void Manager_CollisionResponse(C3D_ContactManager* manager)
 
 void Manager_RenderConstraints(C3D_ContactManager* manager)
 {
-	// TODO: Unimplemented method.
+	// TODO: Manager_RenderConstraints() - Unimplemented method: Requires Citro3D rendering functions.
 	// Reference: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3ContactManager.cpp
 }

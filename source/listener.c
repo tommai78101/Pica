@@ -7,7 +7,7 @@ void Listener_Init(C3D_ContactListener* listener)
 
 void Listener_Free(C3D_ContactListener* listener)
 {
-	//TODO: Unimplemented method.
+	//TODO: Listener_Free() - Unimplemented method: Requires virtualizing the functions, or just leave it empty.
 }
 
 void Listener_BeginContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint)
