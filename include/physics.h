@@ -356,7 +356,7 @@ typedef struct C3D_ContactManager
 typedef struct C3D_Body 
 {
 	void* userData;
-	unsigned int layers;
+	unsigned int collisionLayers;
 	unsigned int flags;
 	unsigned int islandIndex;
 	float linearDamping;
@@ -913,12 +913,29 @@ static inline float Box_MixRestitution(const C3D_Box* A, const C3D_Box* B)
  **************************************************/
 
 /**
- * @brief Initializes the C3D_Body object.
+ * @brief Initializes the C3D_Body object. Only the default values are used.
+ * @note To set the C3D_Body object properties, manually set the individual flags, or use the Body_SetAllFlags() helper function.
  * @param[in,out]     body      The resulting C3D_Body object.
  */
-void Body_Init(C3D_Body* body, C3D_Scene* scene)
+void Body_Init(C3D_Body* body, C3D_Scene* scene);
+
+/*
+ * @brief Helper function to set C3D_Body object flags. Note that all of the flags will be cleared before setting the properties.
+ * @param[out]         body           The resulting C3D_Body object with the new flags set.
+ * @param[in]          type           The C3D_BodyType type of C3D_Body object: Dynamic, Kinematic, Static. Default is Dynamic.
+ * @param[in]          sleep          Should C3D_Body object sleep?
+ * @param[in]          awake          Should C3D_Body object awake?
+ * @param[in]          active         Should C3D_Body object become active?
+ * @param[in]          lockAxisX      Should C3D_Body object be locked to the X axis?
+ * @param[in]          lockAxisY      Should C3D_Body object be locked to the Y axis?
+ * @param[in]          lockAxisZ      Should C3D_Body object be locked to the Z axis?
+ */
+void Body_SetAllFlags(C3D_Body* body, C3D_BodyType type, bool sleep, bool awake, bool active, bool lockAxisX, bool lockAxisY, bool lockAxisZ);
+
+C3D_Box* Body_AddBox(C3D_Body* body)
 {
-	// TODO: Body_Init() - Unimplemented function: Not done.
+	// TODO: Body_AddBox(): Requires C3D_Scene functions.
+	return NULL;
 }
 
 /**
