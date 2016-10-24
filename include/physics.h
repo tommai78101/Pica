@@ -657,7 +657,7 @@ static inline void HS_New(C3D_HalfSpace* out, const C3D_FVec normal, const C3D_F
  * @param[in]     in    C3D_HalfSpace object to retrieve the origin vector position from.
  * @return The C3D_FVec origin.
  */
-static inline C3D_FVec HS_GetOrigin(C3D_HalfSpace* in)
+static inline C3D_FVec HS_GetOrigin(const C3D_HalfSpace* in)
 {
 	C3D_FVec result = FVec3_Scale(in->normal, in->distance);
 	result.w = 1.0f;
@@ -670,7 +670,7 @@ static inline C3D_FVec HS_GetOrigin(C3D_HalfSpace* in)
  * @param[in]    point  C3D_FVec vector position to measure to.
  * @return The distance between the half space to the point.
  */
-static inline float HS_GetDistance(C3D_HalfSpace* in, const C3D_FVec point)
+static inline float HS_GetDistance(const C3D_HalfSpace* in, const C3D_FVec point)
 {
 	return (FVec3_Dot(in->normal, point) - in->distance);
 }
@@ -681,7 +681,7 @@ static inline float HS_GetDistance(C3D_HalfSpace* in, const C3D_FVec point)
  * @param[in]    point  Projection destination position.
  * @return The projection vector.
  */
-static inline C3D_FVec HS_Project(C3D_HalfSpace* in, const C3D_FVec point)
+static inline C3D_FVec HS_Project(const C3D_HalfSpace* in, const C3D_FVec point)
 {
 	return FVec3_Subtract(point, FVec3_Scale(in->normal, HS_GetDistance(in, point)));
 }
@@ -697,7 +697,7 @@ static inline C3D_FVec HS_Project(C3D_HalfSpace* in, const C3D_FVec point)
 void PhysicsStack_Init(C3D_PhysicsStack* out);
 
 /**
- * @brief Releases the C3D_PhysicsStack object. If out is NULL or if the C3D_PhysicsStack object is not empty, it will crash/assert failure.
+ * @brief Releases the C3D_PhysicsStack object. If "in" is NULL or if the C3D_PhysicsStack object is not empty, it will crash/assert failure.
  * @param[in]    in     Check/Assert the object if empty.  
  */
 void PhysicsStack_Free(C3D_PhysicsStack* in);
@@ -781,7 +781,7 @@ void PhysicsPage_Deallocate(C3D_PhysicsPage* pageAllocator, void* data);
  * @param[out]   out   The destination to copy to.
  * @param[in]    in    The source to copy from.
  */
-static inline void Transform_Copy(C3D_Transform* out, C3D_Transform* in)
+static inline void Transform_Copy(C3D_Transform* out, const C3D_Transform* in)
 {
 	*out = *in;
 }
