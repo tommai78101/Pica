@@ -25,6 +25,7 @@
 #define COLLISION_BEHIND(a) ((a) >= 0.0f)
 #define COLLISION_ON(a) ((a) < 0.005f && (a) > -0.005f)
 #define C3D_BAUMGARTE 0.2f
+#define C3D_SLEEP_LINEAR 0.01f
 #define C3D_SLEEP_ANGULAR ((1.0f/120.0f) * M_TAU)
 #define C3D_SLEEP_TIME 0.5f
 #define C3D_PENETRATION_SLOP 0.05f
@@ -487,11 +488,16 @@ C3D_FVec FVec3_Abs(C3D_FVec vector);
 
 /**
  * @brief See: http://box2d.org/2014/02/computing-a-basis/
- * @param[in]   a   A unit vector.
+ * @note DO MIND THE ORDER OF THE PARAMETERS!
+ *       See: http://box2d.org/2014/02/computing-a-basis/
+ *       Suppose vector a has all equal components and is a unit vector: a = (s, s, s)
+ *       Then 3*s*s = 1, s = sqrt(1/3) = 0.57735027. This means that at least one component of a
+ *       unit vector must be greater or equal to 0.57735027. Can use SIMD select operation.
  * @param[out]  b   A unit vector perpendicular to unit vector, "a".
  * @param[out]  c   A unit vector perpendicular to unit vectors, "a" and "b".
+ * @param[in]   a   The unit vector used for calculating the unit vectors, "b" and "c".
  */ 
-void FVec3_ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
+void FVec3_ComputeBasis(C3D_FVec* b, C3D_FVec* c, const C3D_FVec a);
 
 /**
  * @brief Creates a C3D_Mtx containing the outer product of C3D_FVec vectors, lhs and rhs.
@@ -499,7 +505,7 @@ void FVec3_ComputeBasis(const C3D_FVec* a, C3D_FVec* b, C3D_FVec* c);
  * @param[in]    lhs     The first C3D_FVec vector.
  * @param[in]    rhs     The second C3D_FVec vector.
  */
-void Mtx_OuterProduct(C3D_Mtx* out, C3D_FVec* lhs, C3D_FVec* rhs);
+void Mtx_OuterProduct(C3D_Mtx* out, C3D_FVec lhs, C3D_FVec rhs);
 
 /**
  * @brief Obtain the column vector from a C3D_Mtx matrix.
@@ -523,6 +529,24 @@ static inline C3D_FVec Mtx_Column4(C3D_Mtx* in, int column)
 	return FVec4_New(in->r[0].c[column], in->r[1].c[column], in->r[2].c[column], in->r[3].c[column]);
 }
 
+/**
+ * @brief Integrate the quaternion with a given angular velocity and time step. This will update the dynamic state of a rigid body.
+ * @param[in]     quaternion         The quaternion to integrate with.
+ * @param[in]     angularVelocity    The angular velocity.
+ * @param[in]     deltaTime          The time step intervals to integrate.
+ * @return An integrated C3D_FQuat quaternion with respect to the angular velocity and time.   
+ */
+C3D_FQuat Quat_Integrate(C3D_FQuat quaternion, C3D_FVec angularVelocity, float deltaTime)
+{
+	C3D_FQuat deltaQuaternion = Quat_New(angularVelocity.x * deltaTime, angularVelocity.y * deltaTime, angularVelocity.z * deltaTime, 0.0f);
+	deltaQuaternion = Quat_Multiply(deltaQuaternion, quaternion);
+	quaternion.x += deltaQuaternion.x * 0.5f;
+	quaternion.y += deltaQuaternion.y * 0.5f;
+	quaternion.z += deltaQuaternion.z * 0.5f;
+	quaternion.w += deltaQuaternion.w * 0.5f;
+	return Quat_Normalize(quaternion);
+}
+
 /**************************************************
  * Axis-aligned Bounding Box Functions (AABB)
  **************************************************/
@@ -541,7 +565,7 @@ bool AABB_ContainsAABB(const C3D_AABB* outer, const C3D_AABB* inner);
  * @param[in]   inner   C3D_FVec vector position.
  * @return True if vector position is within the AABB box. False, if otherwise.
  */
-bool AABB_ContainsFVec3(const C3D_AABB* outer, const C3D_FVec* inner);
+bool AABB_ContainsFVec3(const C3D_AABB* outer, const C3D_FVec inner);
 
 /**
  * @brief Obtain the surface area of the AABB box specified.
@@ -589,10 +613,10 @@ static inline void AABB_FattenAABB(C3D_AABB* aabb)
  * @param[in]     direction      The direction of the ray.
  * @param[in]     endPointTime   The time specifying the ray end point.
  */
-static inline void Raycast_New(C3D_RaycastData* out, const C3D_FVec* origin, const C3D_FVec* direction, const float endPointTime) 
+static inline void Raycast_New(C3D_RaycastData* out, const C3D_FVec origin, const C3D_FVec direction, const float endPointTime) 
 {
-	out->rayOrigin = *origin;
-	out->direction = FVec3_Normalize(*direction);
+	out->rayOrigin = origin;
+	out->direction = FVec3_Normalize(direction);
 	out->endPointTime = endPointTime;
 }
 
@@ -619,10 +643,10 @@ static inline void HS_Init(C3D_HalfSpace* out, const C3D_FVec normal, float dist
  * @param[in]      b           The second point.
  * @param[in]      c           The third point.
  */
-static inline void HS_NewFVec(C3D_HalfSpace* out, const C3D_FVec* a, const C3D_FVec* b, const C3D_FVec* c)
+static inline void HS_NewFVec(C3D_HalfSpace* out, const C3D_FVec a, const C3D_FVec b, const C3D_FVec c)
 {
-	out->normal = FVec3_Normalize(FVec3_Cross(FVec3_Subtract(*b, *a), FVec3_Subtract(*c, *a)));
-	out->distance = FVec3_Dot(out->normal, *a);
+	out->normal = FVec3_Normalize(FVec3_Cross(FVec3_Subtract(b, a), FVec3_Subtract(c, a)));
+	out->distance = FVec3_Dot(out->normal, a);
 }
 
 /**
@@ -631,10 +655,10 @@ static inline void HS_NewFVec(C3D_HalfSpace* out, const C3D_FVec* a, const C3D_F
  * @param[in]      normal   The normal vector.
  * @param[in]      point    The vector position.
  */
-static inline void HS_New(C3D_HalfSpace* out, const C3D_FVec* normal, const C3D_FVec* point)
+static inline void HS_New(C3D_HalfSpace* out, const C3D_FVec normal, const C3D_FVec point)
 {
-	out->normal = FVec3_Normalize(*normal);
-	out->distance = FVec3_Dot(out->normal, *point);
+	out->normal = FVec3_Normalize(normal);
+	out->distance = FVec3_Dot(out->normal, point);
 }
 
 /**
@@ -642,7 +666,12 @@ static inline void HS_New(C3D_HalfSpace* out, const C3D_FVec* normal, const C3D_
  * @param[in]     in    C3D_HalfSpace object to retrieve the origin vector position from.
  * @return The C3D_FVec origin.
  */
-C3D_FVec HS_GetOrigin(C3D_HalfSpace* in);
+static inline C3D_FVec HS_GetOrigin(C3D_HalfSpace* in)
+{
+	C3D_FVec result = FVec3_Scale(in->normal, in->distance);
+	result.w = 1.0f;
+	return result;
+}
 
 /**
  * @brief Get the distance from the half space to the point.
@@ -650,7 +679,10 @@ C3D_FVec HS_GetOrigin(C3D_HalfSpace* in);
  * @param[in]    point  C3D_FVec vector position to measure to.
  * @return The distance between the half space to the point.
  */
-float HS_GetDistance(C3D_HalfSpace* in, const C3D_FVec* point);
+static inline float HS_GetDistance(C3D_HalfSpace* in, const C3D_FVec point)
+{
+	return (FVec3_Dot(in->normal, point) - in->distance);
+}
 
 /**
  * @brief Projects the half space to the vector position.
@@ -658,7 +690,10 @@ float HS_GetDistance(C3D_HalfSpace* in, const C3D_FVec* point);
  * @param[in]    point  Projection destination position.
  * @return The projection vector.
  */
-C3D_FVec HS_Project(C3D_HalfSpace* in, const C3D_FVec* point);
+static inline C3D_FVec HS_Project(C3D_HalfSpace* in, const C3D_FVec point)
+{
+	return FVec3_Subtract(point, FVec3_Scale(in->normal, HS_GetDistance(in, point)));
+}
 
 /**************************************************
  * Physics Memory Functions (Physics)
@@ -783,29 +818,29 @@ static inline void Transform_Multiply(C3D_Transform* out, const C3D_Transform* l
 
 /**
  * @brief First transposes the rotation matrix, then multiplies the rotation matrix with the vector.
- * @param[out]       out                The resulting C3D_FVec vector.
  * @param[in]        rotationMatrix     The rotation matrix, untransposed.
  * @param[in]        vector             The C3D_FVec vector to be multiplied.
+ * @return The resulting C3D_FVec vector.
  */
-static inline void Transform_MultiplyTransposeFVec(C3D_FVec* out, const C3D_Mtx* rotationMatrix, const C3D_FVec* vector)
+static inline C3D_FVec Transform_MultiplyTransposeFVec(const C3D_Mtx* rotationMatrix, const C3D_FVec vector)
 {
 	C3D_Mtx transpose;
 	Mtx_Copy(&transpose, rotationMatrix);
 	Mtx_Transpose(&transpose);
-	*out = Mtx_MultiplyFVec3(&transpose, *vector);
+	return Mtx_MultiplyFVec3(&transpose, vector);
 }
 
 /**
  * @brief First obtain the difference from the vector to the transform's position, then multiply the transpose of the transform's rotation matrix with the difference. 
  *        Shorthand version of multiplying the rotation matrix from the C3D_Transform with the vector, relative to the C3D_Transform position.
- * @param[out]    out           The resulting C3D_FVec vector.
  * @param[in]     transform     The C3D_Transform object to work with.
  * @param[in]     vector        The C3D_FVec vector relative to the C3D_Transform object's position.
+ * @return The resulting C3D_FVec vector.
  */
-static inline void Transform_MultiplyTransformFVec(C3D_FVec* out, const C3D_Transform* transform, const C3D_FVec* vector)
+static inline C3D_FVec Transform_MultiplyTransformFVec(const C3D_Transform* transform, const C3D_FVec vector)
 {
-	C3D_FVec difference = FVec3_Subtract(*vector, transform->position);
-	Transform_MultiplyTransposeFVec(out, &transform->rotation, &difference);
+	C3D_FVec difference = FVec3_Subtract(vector, transform->position);
+	return Transform_MultiplyTransposeFVec(&transform->rotation, difference);
 }
 
 /**************************************************
@@ -908,7 +943,8 @@ static inline float Box_MixRestitution(const C3D_Box* A, const C3D_Box* B)
  **************************************************/
 
 /**
- * @brief 
+ * @brief Initializes the C3D_BodyParameters struct with the default values.
+ * @param[in,out]      parameters        The resulting C3D_BodyParameters struct.
  */
 void BodyParameters_Init(C3D_BodyParameters* parameters);
 
@@ -974,11 +1010,17 @@ static inline bool Body_IsAwake(C3D_Body* body)
 }
 
 /**
+ * @brief Sets the C3D_Body to be asleep
+ * @param[in,out]      body     The resulting C3D_Body object to set to the Asleep state.
+ */
+void Body_SetSleep(C3D_Body* body);
+
+/**
  * @brief Applies linear force to the C3D_Body object, and sets the Awake flag on the C3D_Body object.
  * @param[in,out]      body        The resulting C3D_Body object.
  * @param[in]          force       The force vector. Needs to be normalized first. 
  */
-void Body_ApplyLinearForce(C3D_Body* body, C3D_FVec* force);
+void Body_ApplyLinearForce(C3D_Body* body, C3D_FVec force);
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Body.cpp
 
@@ -1387,7 +1429,16 @@ static inline void ClipVertex_Init(C3D_ClipVertex* clipVertex)
  * @param[in]       separation       Defines the current signed distance of overlap of an axis. It's not a vector nor a minimum.
  * @return True if the separation value is positive. False, if otherwise.
  */
-bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparation, int currentAxis, const C3D_FVec* normal, float separation);
+bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparation, int currentAxis, const C3D_FVec normal, float separation);
+
+/**
+ * @brief Computes the clipping information of the incident shape's face.
+ * @param[out]        outClipVertexArray     The array of C3D_ClipVertex objects, to store the clipping information into. Array size must be at least 4 elements.
+ * @param[in]         incidentTransform      The local space to world space transformation of the incident shape.
+ * @param[in]         extent                 The extent of the incident shape. (I'm assuming this.)
+ * @param[in]         normal                 The normal of the incident shape's face.
+ */
+void Collision_ComputeIncidentFace(C3D_ClipVertex* outClipVertexArray, const C3D_Transform* incidentTransform, const C3D_FVec extent, const C3D_FVec normal);
 
 /**
  * @brief Sets the reference edge indices and calculates the basis matrix.
@@ -1399,17 +1450,8 @@ bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparati
  * @param[in]         referenceTransform              The reference transformation.
  * @param[in]         separationAxis                  The number representing the axis of separation.
  */
-void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* basisMatrix, C3D_FVec* alignedBasisExtent, C3D_FVec* normal, 
-	                                        C3D_FVec* referenceShapeExtent, C3D_Transform* referenceTransform, int separationAxis);
-
-/**
- * @brief Computes the clipping information of the incident shape's face.
- * @param[out]        outClipVertexArray     The array of C3D_ClipVertex objects, to store the clipping information into. Array size must be at least 4 elements.
- * @param[in]         incidentTransform      The local space to world space transformation of the incident shape.
- * @param[in]         extent                 The extent of the incident shape. (I'm assuming this.)
- * @param[in]         normal                 The normal of the incident shape's face.
- */
-void Collision_ComputeIncidentFace(C3D_ClipVertex* outClipVertexArray, C3D_Transform* incidentTransform, C3D_FVec* extent, C3D_FVec* normal);
+void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* basisMatrix, C3D_FVec* alignedBasisExtent, const C3D_FVec normal, 
+	                                        const C3D_FVec referenceShapeExtent, const C3D_Transform* referenceTransform, int separationAxis);
 
 /**
  * @brief The reference face is a rectangle centered at the origin. To clip the incident face (of arbitrary orientation) we can look down the x and z axes of the reference face and 
@@ -1443,7 +1485,7 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
  * @param[in]       incident                  An array of the incident shape's C3D_ClipVertex vertices. Array size should be 4.
  * @return The number of incident vertices that are behind the reference shape's face. Value is always >= 0.
  */
-int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* referenceFacePosition, C3D_FVec* extent, C3D_Mtx* basis, u8* clipEdges, C3D_ClipVertex* incident);
+int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, const C3D_FVec referenceFacePosition, const C3D_FVec extent, const C3D_Mtx* basis, const u8* clipEdges, const C3D_ClipVertex* incident);
 
 /**
  * @brief Computes closest points between two lines in 3D space.
@@ -1458,7 +1500,7 @@ int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, C3D_FVec* 
  * @param[in]           PB                 The P point on line segment, PQ, located on the incident shape, B.
  * @param[in]           QB                 The Q point on line segment, PQ, located on the incident shape, B.
  */
-void Collision_EdgesContact(C3D_FVec* closestA, C3D_FVec* closestB, C3D_FVec* PA, C3D_FVec* QA, C3D_FVec* PB, C3D_FVec* QB);
+void Collision_EdgesContact(C3D_FVec* closestA, C3D_FVec* closestB, const C3D_FVec PA, const C3D_FVec QA, const C3D_FVec PB, const C3D_FVec QB);
 
 /**
  * @brief Computes the support edge from local to world transform of a shape. The support edge goes from point A to point B.
@@ -1468,7 +1510,7 @@ void Collision_EdgesContact(C3D_FVec* closestA, C3D_FVec* closestB, C3D_FVec* PA
  * @param[in]          extent              The shape's extent.
  * @param[in]          normal              The support edge's normal.
  */
-void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, C3D_Transform* shapeTransform, C3D_FVec* extent, C3D_FVec* normal);
+void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, const C3D_Transform* shapeTransform, const C3D_FVec extent, const C3D_FVec normal);
 
 /**
  * @brief C3D_Box to C3D_Box collision detection and response
@@ -1489,7 +1531,76 @@ void Collision_BoxToBox(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB);
 
 void Island_Solve(C3D_Island* island)
 {
-	// TODO: Island_Solve() - Unimplemented function: Requires Body_XXX() functions.
+	for (unsigned int i = 0; i < island->bodyCount; i++)
+	{
+		C3D_Body* body = island->bodies[i];
+		C3D_VelocityState* velocityState = island->velocityStates + i;
+		if (body->flags & BodyFlag_Dynamic)
+		{
+			Body_ApplyLinearForce(body, FVec3_Scale(island->gravity, body->gravityScale));
+			C3D_Mtx rotationMatrix;
+			Mtx_Copy(&rotationMatrix, &body->transform.rotation);
+			C3D_Mtx transposedRotationMatrix;
+			Mtx_Copy(&transposedRotationMatrix, &body->transform.rotation);
+			Mtx_Transpose(&transposedRotationMatrix);
+			C3D_Mtx temp;
+			Mtx_Multiply(&temp, &rotationMatrix, &body->inverseInertiaModel);
+			Mtx_Multiply(&body->inverseInertiaWorld, &temp, &transposedRotationMatrix);
+			body->linearVelocity = FVec3_Add(body->linearVelocity, FVec3_Scale(FVec3_Scale(body->force, body->inverseMass), island->deltaTime));
+			body->angularVelocity = FVec3_Add(body->angularVelocity, FVec3_Scale(Mtx_MultiplyFVec3(&body->inverseInertiaWorld, body->torque), island->deltaTime));
+			body->linearVelocity = FVec3_Scale(body->linearVelocity, 1.0f / (1.0f + (island->deltaTime * body->linearDamping)));
+			body->angularVelocity = FVec3_Scale(body->angularVelocity, 1.0f / (1.0f + (island->deltaTime * body->angularDamping)));
+		}
+		velocityState->v = body->linearVelocity;
+		velocityState->w = body->angularVelocity;
+	}
+	C3D_ContactSolver contactSolver;
+	Solver_Init(&contactSolver, island);
+	Solver_PreSolve(&contactSolver, island->deltaTime);
+	for (int i = 0; i < island->iterations; i++)
+		Solver_Solve(&contactSolver);
+	Solver_Free(&contactSolver);
+	for (unsigned int i = 0; i < island->bodyCount; i++)
+	{
+		C3D_Body* body = island->bodies[i];
+		C3D_VelocityState* velocityState = island->velocityStates + i;
+		if (body->flags & BodyFlag_Static)
+			continue;
+		body->linearVelocity = velocityState->v;
+		body->angularVelocity = velocityState->w;
+		body->worldCenter = FVec3_Add(body->worldCenter, FVec3_Scale(body->linearVelocity, island->deltaTime));
+		body->quaternion = Quat_Integrate(body->quaternion, body->angularVelocity, island->deltaTime);
+		Mtx_FromQuat(&body->transform.rotation, body->quaternion);
+	}
+	if (island->allowSleep)
+	{
+		float minimumSleepTime = FLT_MAX;
+		for (unsigned int i = 0; i < island->bodyCount; i++)
+		{
+			C3D_Body* body = island->bodies[i];
+			if (body->flags & BodyFlag_Static)
+				continue;
+			const float squareLinearVelocity = FVec3_Dot(body->linearVelocity, body->linearVelocity);
+			const float squareAngularVelocity = FVec3_Dot(body->angularVelocity, body->angularVelocity);
+			const float linearTolerance = C3D_SLEEP_LINEAR;
+			const float angularTolerance = C3D_SLEEP_ANGULAR;
+			if (squareLinearVelocity > linearTolerance || squareAngularVelocity > angularTolerance)
+			{
+				minimumSleepTime = 0.0f;
+				body->sleepTime = 0.0f;
+			}
+			else 
+			{
+				body->sleepTime += island->deltaTime;
+				minimumSleepTime = (minimumSleepTime < body->sleepTime ? minimumSleepTime : body->sleepTime);
+			}
+		}
+		if (minimumSleepTime > C3D_SLEEP_TIME)
+		{
+			for (unsigned int i = 0; i < island->bodyCount; i++)
+				Body_SetSleep(island->bodies[i]);
+		}
+	}
 }
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Island.cpp

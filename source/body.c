@@ -137,6 +137,12 @@ bool Body_CanCollide(C3D_Body* this, const C3D_Body* other)
 	return true;
 }
 
+void Body_ApplyLinearForce(C3D_Body* body, C3D_FVec force)
+{
+	body->force = FVec3_Add(body->force, FVec3_Scale(force, body->mass));
+	Body_SetAwake(body);
+}
+
 void Body_SetAwake(C3D_Body* body)
 {
 	if (!(body->flags & BodyFlag_Awake))
@@ -146,8 +152,12 @@ void Body_SetAwake(C3D_Body* body)
 	}
 }
 
-void Body_ApplyLinearForce(C3D_Body* body, C3D_FVec* force)
+void Body_SetSleep(C3D_Body* body)
 {
-	body->force = FVec3_Add(body->force, FVec3_Scale(body->force, body->mass));
-	Body_SetAwake(body);
+	body->flags &= ~BodyFlag_Awake;
+	body->sleepTime = 0.0f;
+	body->linearVelocity = FVec3_New(0.0f, 0.0f, 0.0f);
+	body->angularVelocity = FVec3_New(0.0f, 0.0f, 0.0f);
+	body->force = FVec3_New(0.0f, 0.0f, 0.0f);
+	body->torque = FVec3_New(0.0f, 0.0f, 0.0f);
 }

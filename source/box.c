@@ -4,10 +4,8 @@ bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* 
 {
 	C3D_Transform worldTransform;
 	Transform_Multiply(&worldTransform, transform, &box->localTransform);
-	C3D_FVec direction;
-	Transform_MultiplyTransposeFVec(&direction, &worldTransform.rotation, &raycastData->direction);
-	C3D_FVec position;
-	Transform_MultiplyTransformFVec(&position, &worldTransform, &raycastData->rayOrigin);
+	C3D_FVec direction = Transform_MultiplyTransposeFVec(&worldTransform.rotation, raycastData->direction);
+	C3D_FVec position =	Transform_MultiplyTransformFVec(&worldTransform, raycastData->rayOrigin);
 	float minimumTime = 0.0f;
 	float maximumTime = raycastData->endPointTime;
 	float time0Value;  //Point at t = 0 (unit)
@@ -62,7 +60,7 @@ void Box_ComputeAABB(C3D_AABB* const aabb, C3D_Box* const box, const C3D_Transfo
 		FVec3_New( box->extent.x,  box->extent.y,  box->extent.z)
 	};
 	for (int i = 0; i < 8; i++)
-		Transform_MultiplyTransformFVec((vectors + i), &worldTransform, (vectors + i));
+		vectors[i] = Transform_MultiplyTransformFVec(&worldTransform, vectors[i]);
 	C3D_FVec minimum = FVec3_New(FLT_MAX, FLT_MAX, FLT_MAX);
 	C3D_FVec maximum = FVec3_New(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 	for (int i = 0; i < 8; i++)
@@ -102,7 +100,7 @@ void Box_ComputeMass(C3D_MassData* const out, C3D_Box* const box)
 	Mtx_Scale(&identity, dotPosition, dotPosition, dotPosition);
 	
 	C3D_Mtx outerProduct;
-	Mtx_OuterProduct(&outerProduct, &box->localTransform.position, &box->localTransform.position);
+	Mtx_OuterProduct(&outerProduct, box->localTransform.position, box->localTransform.position);
 	
 	Mtx_Subtract(&temp, &identity, &outerProduct);
 	Mtx_Scale(&temp, mass, mass, mass);

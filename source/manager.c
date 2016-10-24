@@ -152,7 +152,7 @@ void Manager_CollisionResponse(C3D_ContactManager* manager)
 		C3D_FVec oldTangent0 = oldManifold.tangentVectors[0];
 		C3D_FVec oldTangent1 = oldManifold.tangentVectors[1];
 		Constraint_CollisionResponse(constraint);
-		FVec3_ComputeBasis(&manifold->normal, &manifold->tangentVectors[0], &manifold->tangentVectors[1]);
+		FVec3_ComputeBasis(&manifold->tangentVectors[0], &manifold->tangentVectors[1], manifold->normal);
 		for (unsigned int i = 0; i < manifold->contactsCount; i++)
 		{
 			C3D_Contact* contact = manifold->contacts + i;

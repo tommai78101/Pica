@@ -10,14 +10,14 @@ bool AABB_ContainsAABB(const C3D_AABB* outer, const C3D_AABB* inner)
 		   outer->max.z >= inner->max.z;
 }
 
-bool AABB_ContainsFVec3(const C3D_AABB* outer, const C3D_FVec* inner) 
+bool AABB_ContainsFVec3(const C3D_AABB* outer, const C3D_FVec inner) 
 {
-	return outer->min.x <= inner->x &&
-	       outer->min.y <= inner->y &&
-		   outer->min.z <= inner->z &&
-		   outer->max.x >= inner->x &&
-		   outer->max.y >= inner->y &&
-		   outer->max.z >= inner->z;
+	return outer->min.x <= inner.x &&
+	       outer->min.y <= inner.y &&
+		   outer->min.z <= inner.z &&
+		   outer->max.x >= inner.x &&
+		   outer->max.y >= inner.y &&
+		   outer->max.z >= inner.z;
 }
 
 float AABB_GetSurfaceArea(const C3D_AABB* myself) 
