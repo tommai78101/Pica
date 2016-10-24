@@ -1,5 +1,10 @@
 #include "physics.h"
 
+/**
+ * @brief Adds the index to the list of free C3D_DynamicAABBTreeNode objects available for use. This means the C3D_DynamicAABBTreeNode object and subsequent nodes will be cleared away.
+ * @param[in,out]     tree     The resulting C3D_DynamicAABBTree object to clear the nodes in.
+ * @param[in]         index    The C3D_DynamicAABBTreeNode object's node ID to start freeing from. Subsequent nodes will be cleared away thereafter.
+ */
 void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, int index)
 {
 	for (int i = index; i < tree->capacity - 1; i++)
@@ -12,6 +17,11 @@ void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, int index)
 	tree->freeList = index;
 }
 
+/**
+ * @brief Allocates a new node. If there are available free nodes to use, it will allocate from that list of free nodes to choose from. If there aren't any, it will allocate new ones on the memory.
+ * @param[in,out]     tree      The resulting C3D_DynamicAABBTree to allocate new C3D_DynamicAABBTreeNode object nodes to.
+ * @return The node index (ID) of the last allocated C3D_DynamicAABBTreeNode object.
+ */
 int Tree_AllocateNode(C3D_DynamicAABBTree* tree)
 {
 	if (tree->freeList == TREENODE_NULL)
@@ -34,6 +44,32 @@ int Tree_AllocateNode(C3D_DynamicAABBTree* tree)
 	return freeNode;
 }
 
+/**
+ * @brief Releases the C3D_DynamicAABBTreeNode node by clearing an occupied node of the given index.
+ * @param[in,out]     tree           The resulting C3D_DynamicAABBTree object.
+ * @param[in]         index          The index of the C3D_DynamicAABBTreeNode node to be cleared away.  
+ */
+void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, int index)
+{
+	assert(index >= 0 && index < tree->capacity);
+	tree->nodes[index].next = tree->freeList;
+	tree->nodes[index].height = TREENODE_NULL;
+	tree->freeList = index;
+	tree->count--;
+}
+
+/**
+ * @brief Balances the tree so the tree contains C3D_DynamicAABBTreeNode objects where the tree does not have a height difference of more than 1. 
+ * @note: The following diagram shows how where the indices are (indexA = A, indexB = B, and so on).
+ *            A
+ *          /   \
+ *         B     C
+ *        / \   / \
+ *       D   E F   G
+ * @param[in,out]       tree       The resulting C3D_DynamicAABBTree object to balance.
+ * @param[in]           indexA     The starting C3D_DynamicAABBTreeNode node, where the balancing starts from.
+ * @return The C3D_DynamicAABBTreeNode parent node that is balanced from indexA. If indexA is the parent node whose children is balanced, then indexA will be returned.
+ */
 int Tree_Balance(C3D_DynamicAABBTree* tree, int indexA)
 {
 	C3D_DynamicAABBTreeNode* A = tree->nodes + indexA;
@@ -127,6 +163,11 @@ int Tree_Balance(C3D_DynamicAABBTree* tree, int indexA)
 	return indexA;
 }
 
+/**
+ * @brief Balances all C3D_DynamicAABBTreeNode nodes in the C3D_DynamicAABBTree tree.
+ * @param[in,out]       tree        The resulting C3D_DynamicAABBTree object with all balanced C3D_DynamicAABBTree nodes, starting from the index.
+ * @param[in]           index       The starting C3D_DynamicAABBTreeNode node's index (ID) to begin balancing from.
+ */
 void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, int index)
 {
 	while (index != TREENODE_NULL)
@@ -140,6 +181,11 @@ void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, int index)
 	}
 }
 
+/**
+ * @brief Inserts a new C3D_DynamicAABBTreeNode leaf node of the C3D_DynamicAABBTreeNode node index (ID). In other words, inserts a child node at the parent node index ID.
+ * @param[in,out]      tree      The resulting C3D_DynamicAABBTree tree with the inserted C3D_DynamicAABBTreeNode node.
+ * @param[in]          id        The C3D_DynamicAABBTreeNode node index value to insert the leaf node at, setting the given C3D_DynamicAABBTreeNode node as the parent node.
+ */
 void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, int id)
 {
 	if (tree->root == TREENODE_NULL)
@@ -221,40 +267,11 @@ void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, int id)
 	Tree_SyncHierarchy(tree, tree->nodes[id].parent);
 }
 
-void Tree_Init(C3D_DynamicAABBTree* tree)
-{
-	tree->root = TREENODE_NULL;
-	tree->capacity = 1024;
-	tree->count = 0;
-	tree->nodes = (C3D_DynamicAABBTreeNode*) linearAlloc(sizeof(C3D_DynamicAABBTreeNode) * tree->capacity);
-	Tree_AddToFreeList(tree, 0);
-}
-
-void Tree_Free(C3D_DynamicAABBTree* tree)
-{
-	linearFree(tree->nodes);
-}
-
-int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData)
-{
-	int id = Tree_AllocateNode(tree);
-	tree->nodes[id].aabb = *aabb;
-	AABB_FattenAABB(&tree->nodes[id].aabb);
-	tree->nodes[id].userData = userData;
-	tree->nodes[id].height = 0;
-	Tree_InsertLeaf(tree, id);
-	return id;
-}
-
-void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, int index)
-{
-	assert(index >= 0 && index < tree->capacity);
-	tree->nodes[index].next = tree->freeList;
-	tree->nodes[index].height = TREENODE_NULL;
-	tree->freeList = index;
-	tree->count--;
-}
-
+/**
+ * @brief Removes a C3D_DynamicAABBTreeNode leaf node of the given C3D_DynamicAABBTreeNode node index (ID). In other words, removes a child node from the parent node index ID.
+ * @param[in,out]      tree      The resulting C3D_DynamicAABBTree tree with the removed C3D_DynamicAABBTreeNode node.
+ * @param[in]          id        The C3D_DynamicAABBTreeNode nodex index value to remove the leaf node at, setting the appropriate parent node.
+ */
 void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, int id)
 {
 	if (id == tree->root)
@@ -286,6 +303,50 @@ void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, int id)
 	Tree_SyncHierarchy(tree, grandparent);
 }
 
+/**
+ * @brief Initializes the C3D_DynamicAABBTree object.
+ * @param[in,out]      tree         The resulting C3D_DynamicAABBTree tree object.
+ */
+void Tree_Init(C3D_DynamicAABBTree* tree)
+{
+	tree->root = TREENODE_NULL;
+	tree->capacity = 1024;
+	tree->count = 0;
+	tree->nodes = (C3D_DynamicAABBTreeNode*) linearAlloc(sizeof(C3D_DynamicAABBTreeNode) * tree->capacity);
+	Tree_AddToFreeList(tree, 0);
+}
+
+/**
+ * @brief Deinitializes the C3D_DynamicAABBTree tree object.
+ * @param[in,out]     tree      The resulting C3D_DynamicAABBTree tree object to be released.
+ */
+void Tree_Free(C3D_DynamicAABBTree* tree)
+{
+	linearFree(tree->nodes);
+}
+
+/**
+ * @brief Inserts a new C3D_DynamicAABBTreeNode node object containing the C3D_AABB object and its user data.
+ * @param[in,out]        tree      The resulting C3D_DynamicAABBTree tree object.
+ * @param[in]            aabb      The C3D_AABB object for the new C3D_DynamicAABBTreeNode node.
+ * @param[in]            userData  The user data to insert into the new C3D_DynamicAABBTreeNode node.
+ */
+int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData)
+{
+	int id = Tree_AllocateNode(tree);
+	tree->nodes[id].aabb = *aabb;
+	AABB_FattenAABB(&tree->nodes[id].aabb);
+	tree->nodes[id].userData = userData;
+	tree->nodes[id].height = 0;
+	Tree_InsertLeaf(tree, id);
+	return id;
+}
+
+/**
+ * @brief Removes the given C3D_DynamicAABBTreeNode node object at the given index. This includes removing any child C3D_DynamicAABBTreeNode nodes.
+ * @param[in,out]       tree      The resulting C3D_DynamicAABBTree tree object with the specified C3D_DynamicAABBTreeNode node object removed.
+ * @param[in]           index     The index of the C3D_DynamicAABBTreeNode node object to be removed, including child C3D_DynamicAABBTreeNode nodes.
+ */
 void Tree_Remove(C3D_DynamicAABBTree* tree, int index)
 {
 	assert(index >= 0 && index < tree->capacity);
@@ -294,18 +355,36 @@ void Tree_Remove(C3D_DynamicAABBTree* tree, int index)
 	Tree_DeallocateNode(tree, index);
 }
 
+/**
+ * @brief Obtain the C3D_AABB object from C3D_DynamicAABBTreeNode node of index ID from C3D_DynamicAABBTree tree object.
+ * @param[in]         tree           The tree to look for the C3D_DynamicAABBTreeNode node that matches the index ID.
+ * @param[in]         id             The C3D_DynamicAABBTreeNode node index ID to look for in the C3D_DynamicAABBTree tree object.
+ * @return The C3D_AABB object that matches the above conditions. 
+ */
 C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id) 
 {
 	assert(id >= 0 && id < tree->capacity);
 	return tree->nodes[id].aabb;
 }
 
+/**
+ * @brief Obtains the user data from the C3D_DynamicAABBTreeNode node stored in the C3D_DynamicAABBTree tree object.
+ * @param[in]     tree         The C3D_DynamicAABBTree tree object to look for.
+ * @param[in]     id           The C3D_DynamicAABBTreeNode node index ID to look for.
+ * @return the C3D_AABB object stored in the C3D_DynamicAABBTreeNode node of index ID in the C3D_DynamicAABBTree tree.
+ */
 void* Tree_GetUserData(C3D_DynamicAABBTree* tree, int id)
 {
 	assert(id >= 0 && id < tree->capacity);
 	return tree->nodes[id].userData;
 }
 
+/**
+ * @brief Queries for information to retrieve from the C3D_DynamicAABBTree tree.
+ * @param[in,out]      tree             The C3D_DynamicAABBTree tree object to query through.
+ * @param[in]          broadphase       The C3D_Broadphase object to update.
+ * @param[in]          aabb             The C3D_AABB object to validate with.
+ */
 void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D_AABB* aabb)
 {
 	const int stackCapacity = 256;
@@ -333,6 +412,11 @@ void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D
 	}
 }
 
+/**
+ * @brief Checks if the C3D_DynamicAABBTree tree object contains any invalid C3D_DynamicAABBTreeNode node positions, and aims to fix it.
+ * @param[in,out]         tree              The resulting C3D_DynamicAABBTree tree object with the correct C3D_DynamicAABBTreeNode node positions.
+ * @param[in]             index             The index of the C3D_DynamicAABBTreeNode node, for the validation to start from.
+ */
 void Tree_ValidateStructure(C3D_DynamicAABBTree* tree, int index)
 {
 	C3D_DynamicAABBTreeNode* node = tree->nodes + index;
@@ -354,6 +438,10 @@ void Tree_ValidateStructure(C3D_DynamicAABBTree* tree, int index)
 	Tree_ValidateStructure(tree, indexRight);
 }
 
+/**
+ * @brief Quickly checks if the C3D_DynamicAABBTree tree object itself is intact. Does not include validating the C3D_DynamicAABBTree tree structure in its entirety.
+ * @param[in,out]     tree        C3D_DynamicAABBTree object to validate.
+ */
 void Tree_Validate(C3D_DynamicAABBTree* tree)
 {
 	int freeNodes = 0;
@@ -374,6 +462,12 @@ void Tree_Validate(C3D_DynamicAABBTree* tree)
 	}
 }
 
+/**
+ * @brief Updates the C3D_DynamicAABBTree tree.
+ * @param[in,out]      tree                  The resulting C3D_DynamicAABBTree tree object.
+ * @param[in]          id                    The C3D_DynamicAABBTreeNode node to write the new C3D_AABB object to..
+ * @param[in]          aabb                  The C3D_AABB object to replace with the already existing C3D_AABB object, stored previously in the C3D_DynamicAABBTreeNode node with the given ID.
+ */
 bool Tree_Update(C3D_DynamicAABBTree* tree, int id, const C3D_AABB* aabb)
 {
 	assert(id >= 0 && id < tree->capacity);

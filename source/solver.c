@@ -1,5 +1,10 @@
 #include "physics.h"
 
+/**
+ * @brief Initializes the C3D_ContactSolver object using the given C3D_Island object.
+ * @param[out]      solver           The resulting C3D_ContactSolver object.
+ * @param[in]       island           The given C3D_Island object to initialize.
+ */
 void Solver_Init(C3D_ContactSolver* solver, C3D_Island* island)
 {
 	solver->island = island;
@@ -9,6 +14,10 @@ void Solver_Init(C3D_ContactSolver* solver, C3D_Island* island)
 	solver->enableFriction = island->enableFriction;
 }
 
+/**
+ * @brief Releases the C3D_ContactSolver object to its original state, by shutting it down.
+ * @param[in,out]    solver          The resulting C3D_ContactSolver object.
+ */
 void Solver_Free(C3D_ContactSolver* solver)
 {
 	for (unsigned int i = 0; i < solver->contactConstraintStateCount; i++)
@@ -26,6 +35,11 @@ void Solver_Free(C3D_ContactSolver* solver)
 	}
 }
 
+/**
+ * @brief Precalculates the C3D_ContactSolver object, so it will be ready when it is being solved. Also, precalculates (Jm^-1)*(Jt) for contact and friction constraints
+ * @param[in,out]       solver         The resulting C3D_ContactSolver object.
+ * @param[in]           deltaTime      Used for precalculating the bias factor of the contact states in the C3D_ContactSolver object.
+ */
 void Solver_PreSolve(C3D_ContactSolver* solver, float deltaTime)
 {
 	for (unsigned int i = 0; i < solver->contactConstraintStateCount; i++)
@@ -77,6 +91,10 @@ void Solver_PreSolve(C3D_ContactSolver* solver, float deltaTime)
 	}
 }
 
+/**
+ * @brief Calculates the C3D_ContactSolver object.
+ * @param[in,out]       solver         The resulting C3D_ContactSolver object.
+ */
 void Solver_Solve(C3D_ContactSolver* solver)
 {
 	for (unsigned int i = 0; i < solver->contactConstraintStateCount; i++)

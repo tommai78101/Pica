@@ -1,5 +1,28 @@
 #include "physics.h"
 
+/**
+ * @brief Tracks an axis from a face and checks if the current separation value is positive, else re-adjusts the separation value, current axis, and current axis normal. 
+ * @note The Separating Axis Theorem is often used to check for collisions between two simple polygons, thus guessing this function is part of the Separating Axis Theorem. 
+ *       If the separation value is larger than the maximum separation value, the separation will become the maximum separation value, the axis will be replaced with the
+ *       current axis, and the normal will be replaced with the current axis' normal.
+ *       
+ * RandyGual: The idea of SAT is to test all axes of potential separation by computing a signed overlap value that represents distance along the axis's normal vector. In 3D 
+ *            we deal with polyhedra, spheres and capsules. This means we can have faces that describe planes (with the normal as the axis), or pairs of edges that define a 
+ *            cross product, which defines the axis direction. In any case, we find signed overlap values, positive for separating and negative for overlapping. We want to 
+ *            find the smallest signed value. If this minimum is positive, no overlap occurred. If negative, this is the axis we want to resolve the collision upon.
+ *       
+ *       See the following link to understand where the 15 axes were obtained from:
+ *       http://gamedev.stackexchange.com/questions/44500/how-many-and-which-axes-to-use-for-3d-obb-collision-with-sat/
+ *       
+ *       The magnitude of the separation does not determine how strong the collision response will be in a physically based simulation.
+ * @param[out]      axis             Pointer to a number representing an axis, from the 1st axis to the 15th axis (probably indexed from 0 to 14). 
+ * @param[out]      axisNormal       The memory storing the normal associated with maxSeparation value.
+ * @param[out]      maxSeparation    The current maximum separation. 
+ * @param[in]       currentAxis      Current axis to evaluate.
+ * @param[in]       normal           The current normal corresponding to the axis, currentAxis.
+ * @param[in]       separation       Defines the current signed distance of overlap of an axis. It's not a vector nor a minimum.
+ * @return True if the separation value is positive. False, if otherwise.
+ */
 bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparation, int currentAxis, const C3D_FVec normal, float separation)
 {
 	if (separation > 0.0f)
@@ -13,6 +36,13 @@ bool Collision_TrackFaceAxis(int* axis, C3D_FVec* axisNormal, float* maxSeparati
 	return false;
 }
 
+/**
+ * @brief Computes the clipping information of the incident shape's face.
+ * @param[out]        outClipVertexArray     The array of C3D_ClipVertex objects, to store the clipping information into. Array size must be at least 4 elements.
+ * @param[in]         incidentTransform      The local space to world space transformation of the incident shape.
+ * @param[in]         extent                 The extent of the incident shape. (I'm assuming this.)
+ * @param[in]         normal                 The normal of the incident shape's face.
+ */
 void Collision_ComputeIncidentFace(C3D_ClipVertex* outClipVertexArray, const C3D_Transform* incidentTransform, const C3D_FVec extent, const C3D_FVec normal)
 {
 	C3D_FVec newNormal = Transform_MultiplyTransposeFVec(&incidentTransform->rotation, normal);
@@ -130,6 +160,16 @@ void Collision_ComputeIncidentFace(C3D_ClipVertex* outClipVertexArray, const C3D
 	}
 }
 
+/**
+ * @brief Sets the reference edge indices and calculates the basis matrix.
+ * @param[out]        referenceEdgeIndices            The output indices for the reference edges.
+ * @param[out]        basisMatrix                     The rotation matrix to represent the orientation of the reference face.
+ * @param[out]        alignedBasisExtent              The extent that's vector-aligned to the Cartesian axes within the space of the basis matrix.     
+ * @param[in]         normal                          The normal of the reference face.
+ * @param[in]         referenceShapeExtent            The extent of the reference shape.
+ * @param[in]         referenceTransform              The reference transformation.
+ * @param[in]         separationAxis                  The number representing the axis of separation.
+ */
 void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* basisMatrix, C3D_FVec* alignedBasisExtent, const C3D_FVec normal, 
 	                                        const C3D_FVec referenceShapeExtent, const C3D_Transform* referenceTransform, int separationAxis)
 {
@@ -226,6 +266,22 @@ void Collision_ComputeReferenceEdgeAndBasis(u8* referenceEdgeIndices, C3D_Mtx* b
 	basisMatrix->r[3] = FVec4_New(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
+/**
+ * @brief The reference face is a rectangle centered at the origin. To clip the incident face (of arbitrary orientation) we can look down the x and z axes of the reference face and 
+ *        do one-dimensional clipping routines (i.e. lerp) and perform an orthographic clip. It's just a orthographic clipping routine. So if we look down the y axis (straight into 
+ *        the reference face) with an orthographic perspective, we shave away all of the incident face that lay beyond the boundary of the reference face, which is a rectangle. To 
+ *        me, this is the most novel and interesting part.
+ * @note
+ * RandyGual: The purpose of this function is to clip the incident face against the reference face side planes. I know this is jargon to you, but that's OK. 
+ *            If someone really wants to know what the jargon is they can look it up without too much trouble, especially in the links I provide around the source code. 
+ * @param[out]       outClipVertex        The resulting C3D_ClipVertex to return;
+ * @param[in]        sign                 Computes one dimensional dot product. It's the sign of a plane.
+ * @param[in]        extentComponent      The extent component of the object's bounding box's extent vector.
+ * @param[in]        axis                 The number representing the axis of separation, from Axis 1 to Axis 15 (0 ~ 14).
+ * @param[in]        inClipVertex         The C3D_ClipVertex to pass into.
+ * @param[in]        clipEdge             Determines which edge of this rectangle are we clipping against.
+ * @return The size of the C3D_ClipVertex object.
+ */
 int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float extent, int axis, int clipEdge, C3D_ClipVertex* inClipVertex, int inCount)
 {
 	int outCount = 0;
@@ -266,6 +322,20 @@ int Collision_Orthographic(C3D_ClipVertex* outClipVertex, float sign, float exte
 	return outCount;
 }
 
+/**
+ * @brief Compute using Sutherland-Hodgman Clipping. See Collision_Orthographic() explanation for more info.
+ * @note Resources provided by Randy Gual:
+ *       http://www.randygaul.net/2013/10/27/sutherland-hodgman-clipping/
+ *       https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
+ * @param[out]      outClipVertices           An array of C3D_ClipVertex vertices, storing results from doing one-dimensional clipping routines. Array size should be 8.
+ * @param[out]      outDepths                 An array of floats, storing the vector Z component depth differences of the incident face against the reference face.
+ * @param[in]       referenceFacePosition     Reference face's position vertex. (Assuming)
+ * @param[in]       extent                    The reference shape's extent.
+ * @param[in]       basis                     The reference shape's basis matrix. 
+ * @param[in]       clipEdges                 An array of the reference shape's clip edges. Array size should be 4.
+ * @param[in]       incident                  An array of the incident shape's C3D_ClipVertex vertices. Array size should be 4.
+ * @return The number of incident vertices that are behind the reference shape's face. Value is always >= 0.
+ */
 int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, const C3D_FVec referenceFacePosition, const C3D_FVec extent, const C3D_Mtx* basis, const u8* clipEdges, const C3D_ClipVertex* incident)
 {
 	int inCount = 4;
@@ -303,6 +373,19 @@ int Collision_Clip(C3D_ClipVertex* outClipVertices, float* outDepths, const C3D_
 	return outCount;
 }
 
+/**
+ * @brief Computes closest points between two lines in 3D space.
+ * @note RandyGual: Sometimes the shapes are called reference and incident shapes (by old notation!), and sometimes I just refer to them as A and B. P and Q define a 
+ *       line segment by two points. PA-QA, and PB-QB, are two different line segments, one from each shape, A and B.
+ *       
+ *       See reference (Closest Point of Approach, CPA): http://geomalgorithms.com/a07-_distance.html
+ * @param[out]          closestA           The closest point on reference shape, A.
+ * @param[out]          closestB           The closest point on incident shape, B.
+ * @param[in]           PA                 The P point on line segment, PQ, located on the reference shape, A.
+ * @param[in]           QA                 The Q point on line segment, PQ, located on the reference shape, A.
+ * @param[in]           PB                 The P point on line segment, PQ, located on the incident shape, B.
+ * @param[in]           QB                 The Q point on line segment, PQ, located on the incident shape, B.
+ */
 void Collision_EdgesContact(C3D_FVec* closestA, C3D_FVec* closestB, const C3D_FVec PA, const C3D_FVec QA, const C3D_FVec PB, const C3D_FVec QB)
 {
 	C3D_FVec lineRayA = FVec3_Subtract(QA, PA);
@@ -320,6 +403,14 @@ void Collision_EdgesContact(C3D_FVec* closestA, C3D_FVec* closestB, const C3D_FV
 	*closestB = FVec3_Add(PB, FVec3_Scale(lineRayB, TB));
 }
 
+/**
+ * @brief Computes the support edge from local to world transform of a shape. The support edge goes from point A to point B.
+ * @param[out]         pointA              Point A on the line segment that goes from A to B.
+ * @param[out]         pointB              Point B on the line segment that goes from A to B.
+ * @param[in]          shapeTransform      The local to world transform of a shape we are computing the support of.
+ * @param[in]          extent              The shape's extent.
+ * @param[in]          normal              The support edge's normal.
+ */
 void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, const C3D_Transform* shapeTransform, const C3D_FVec extent, const C3D_FVec normal)
 {
 	C3D_FVec newNormal = Transform_MultiplyTransposeFVec(&shapeTransform->rotation, normal);
@@ -366,6 +457,17 @@ void Collision_SupportEdge(C3D_FVec* pointA, C3D_FVec* pointB, const C3D_Transfo
 	*pointB = Transform_MultiplyTransformFVec(shapeTransform, b);
 }
 
+/**
+ * @brief C3D_Box to C3D_Box collision detection and response
+ * @note Available Resources:
+ *       1. Deriving OBB to OBB Intersection and Manifold Generation, Randy Gual -    http://www.randygaul.net/2014/05/22/deriving-obb-to-obb-intersection-sat/
+ *       2. Modeling and Solving Constraints, GDC 2007 Lecture by Erin Catto -        http://box2d.org/files/GDC2007/GDC2007_Catto_Erin_Physics1.ppt
+ *       3. Contact Manifolds, GDC 2007 Lecture by Erin Catto -                       http://box2d.org/files/GDC2007/GDC2007_Catto_Erin_Physics2.ppt
+ *       4. Box2D Lite version download -                                             http://box2d.org/files/GDC2006/Box2D_Lite.zip
+ * @param[out]        manifold         The C3D_Manifold object to generate and store the collision properties for the C3D_Box objects, Box A and Box B.
+ * @param[in]         boxA             The first C3D_Box object to collide with.
+ * @param[in]         boxB             The second C3D_Box object to collide with.
+ */
 void Collision_BoxToBox(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB)
 {
 	C3D_Mtx tempMatrix;

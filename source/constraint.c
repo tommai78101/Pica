@@ -1,5 +1,9 @@
 #include "physics.h"
 
+/**
+ * @brief To generate contact information, and to solve collisions from a given C3D_Constraint object.
+ * @param[in,out]      constraint       A C3D_Constraint object to generate contact information with.
+ */
 void Constraint_CollisionResponse(C3D_ContactConstraint* constraint)
 {
 	constraint->manifold.contactsCount = 0;

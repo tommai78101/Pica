@@ -1,5 +1,10 @@
 #include "physics.h"
 
+/**
+ * @brief Initializes the C3D_ContactManager object with the provided C3D_PhysicsStack memory stack.
+ * @param[in,out]    manager          The resulting C3D_ContactManager object.
+ * @param[in]        stack            The C3D_PhysicsStack memory stack to initialize the C3D_ContactManager object with.
+ */
 void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack)
 {
 	manager->stack = stack;
@@ -10,6 +15,12 @@ void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack)
 	manager->contactListener = NULL;
 }
 
+/**
+ * @brief Adds a C3D_ContactConstraint contact where C3D_Box objects, boxA and boxB, are touching or overlapping each other.
+ * @param[in,out]      manager         The resulting C3D_ContactManager object.
+ * @param[in]          boxA            The C3D_Box object to check for contacts.
+ * @param[in]          boxB            The C3D_Box object to check for contacts.
+ */
 void Manager_AddConstraint(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* boxB)
 {
 	C3D_Body* bodyA = boxA->body;
@@ -70,6 +81,11 @@ void Manager_AddConstraint(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* 
 	manager->contactCount++;
 }
 
+/**
+ * @brief Removes the given C3D_ContactConstraint contact from the C3D_ContactManager manager object.
+ * @param[in,out]      manager               The resulting C3D_ContactManager manager object.
+ * @param[in]          constraint            The C3D_Contact object to remove from the C3D_ContactManager object.
+ */
 void Manager_RemoveConstraint(C3D_ContactManager* manager, C3D_ContactConstraint* constraint)
 {
 	C3D_Body* bodyA = constraint->bodyA;
@@ -98,6 +114,11 @@ void Manager_RemoveConstraint(C3D_ContactManager* manager, C3D_ContactConstraint
 	PhysicsPage_Deallocate(&manager->pageAllocator, constraint);
 }
 
+/**
+ * @brief Removes all C3D_ContactConstraint contacts from the given C3D_Body object.
+ * @param[in,out]      manager             The resulting C3D_ContactManager manager object.
+ * @param[in]          body                The C3D_Body object whose C3D_ContactConstraints are to be removed from the C3D_ContactManager object.
+ */
 void Manager_RemoveConstraintsFromBody(C3D_ContactManager* manager, C3D_Body* body)
 {
 	C3D_ContactEdge* edge = body->contactList;
@@ -109,6 +130,11 @@ void Manager_RemoveConstraintsFromBody(C3D_ContactManager* manager, C3D_Body* bo
 	}
 }
 
+/**
+ * @brief Removes the given C3D_Body object from the given C3D_Broadphase object.
+ * @param[in,out]      manager            The resulting C3D_ContactManager manager object.
+ * @param[in]          body               The C3D_Body object whose C3D_Box objects are to be removed from the C3D_Broadphase object.
+ */
 void Manager_RemoveBodyFromBroadphase(C3D_ContactManager* manager, C3D_Body* body)
 {
 	C3D_Box* box = body->boxes;
@@ -119,6 +145,10 @@ void Manager_RemoveBodyFromBroadphase(C3D_ContactManager* manager, C3D_Body* bod
 	}
 }
 
+/**
+ * @brief Handles collision checks.
+ * @param[in,out]       manager           The resulting C3D_ContactManager manager object.
+ */
 void Manager_CollisionResponse(C3D_ContactManager* manager)
 {
 	C3D_ContactConstraint* constraint = manager->contactList;
@@ -185,6 +215,10 @@ void Manager_CollisionResponse(C3D_ContactManager* manager)
 	}
 }
 
+/**
+ * @brief Render the C3D_ContactConstraint objects.
+ * @param[in,out]      manager        The resulting C3D_ContactManager manager object.
+ */
 void Manager_RenderConstraints(C3D_ContactManager* manager)
 {
 	// TODO: Manager_RenderConstraints() - Unimplemented method: Requires Citro3D rendering functions.

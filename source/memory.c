@@ -1,5 +1,9 @@
 #include "physics.h"
 
+/**
+ * @brief Initializes the C3D_PhysicsStack object. If out is NULL, it will crash.
+ * @param[in,out]     out    C3D_PhyiscsStack object to be initialized.
+ */
 void PhysicsStack_Init(C3D_PhysicsStack* out)
 {
 	out->entries = ((C3D_PhysicsStackEntry*) linearAlloc(sizeof(C3D_PhysicsStackEntry) * 64));
@@ -9,12 +13,22 @@ void PhysicsStack_Init(C3D_PhysicsStack* out)
 	out->entryCapacity = 64;
 }
 
+/**
+ * @brief Releases the C3D_PhysicsStack object. If out is NULL or if the C3D_PhysicsStack object is not empty, it will crash/assert failure.
+ * @param[in]    in     Check/Assert the object if empty.  
+ */
 void PhysicsStack_Free(C3D_PhysicsStack* in)
 {
 	assert(in->index == 0);
 	assert(in->entryCount == 0);
 }
 
+/**
+ * @brief Allocates new memory to the C3D_PhysicsStack object. If stack is NULL, it will crash.
+ * @param[in,out]   stack      The C3D_PhysicsStack object to assign the allocated memory to.
+ * @param[in]       newSize    Specify the new size of the allocated memory.
+ * @return Pointer to the allocated memory.
+ */
 void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize)
 {
 	if (stack->entryCount == stack->entryCapacity)
@@ -39,6 +53,11 @@ void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize)
 	return entry->data;
 }
 
+/**
+ * @brief Releases the memory from the C3D_PhysicsStack object. If stack is NULL, it will crash.
+ * @param[in,out]     stack       The C3D_PhysicsStack object to release memory from.
+ * @param[in]         data        The pointer that the C3D_PhysicsStack object needs to reference to release.
+ */
 void PhysicsStack_Deallocate(C3D_PhysicsStack* stack, void* data)
 {
 	assert(stack->entryCount > 0);
@@ -52,6 +71,10 @@ void PhysicsStack_Deallocate(C3D_PhysicsStack* stack, void* data)
 	stack->entryCount--;
 }
 
+/**
+ * @brief Initializes the C3D_PhysicsHeap object.
+ * @param[in,out]     out     The C3D_PhysicsHeap object to be initialized.
+ */
 void PhysicsHeap_Init(C3D_PhysicsHeap* out)
 {
 	out->memory = (HeapHeader*) linearAlloc(C3D_PHYSICSHEAP_MAX_SIZE);
@@ -67,12 +90,22 @@ void PhysicsHeap_Init(C3D_PhysicsHeap* out)
 	out->freeBlocks->size = C3D_PHYSICSHEAP_MAX_SIZE;
 }
 
+/**
+ * @brief Releases the C3D_PhysicsHeap object.
+ * @param[in,out]      out     The C3D_PhysicsHeap object to be released.
+ */
 void PhysicsHeap_Free(C3D_PhysicsHeap* out)
 {
 	linearFree(out->memory);
 	linearFree(out->freeBlocks);
 }
 
+/**
+ * @brief Allocates new memory to the C3D_PhysicsHeap object. If heap is NULL, it will crash.
+ * @param[in,out]      heap       The C3D_PhysicsHeap object to assign the allocated memory to.
+ * @param[in]          newSize    Specify the new size of the allocated memory.
+ * @return Pointer to the allocated memory.
+ */
 void* PhysicsHeap_Allocate(C3D_PhysicsHeap* heap, unsigned int newSize)
 {
 	unsigned int sizeNeeded = newSize + sizeof(HeapHeader);
@@ -107,6 +140,11 @@ void* PhysicsHeap_Allocate(C3D_PhysicsHeap* heap, unsigned int newSize)
 	return MACRO_POINTER_ADD(node, sizeof(HeapHeader));
 }
 
+/**
+ * @brief Releases the memory from the C3D_PhysicsHeap object. If heap is NULL, it will crash.
+ * @param[in,out]      heap      The C3D_PhysicsHeap object to release allocated memory from.
+ * @param[in]          data      The pointer that the C3D_PhysicsHeap object needs to reference to release.
+ */
 void PhysicsHeap_Deallocate(C3D_PhysicsHeap* heap, void* data)
 {
 	assert(data);
@@ -184,6 +222,12 @@ void PhysicsHeap_Deallocate(C3D_PhysicsHeap* heap, void* data)
 	}
 }
 
+/**
+ * @brief Initializes the C3D_PhysicsPage object. If out is NULL, it will crash.
+ * @param[in,out]     out               The resulting C3D_PhysicsPage object.
+ * @param[in]         elementSize       The size of each element intended for initialization.
+ * @param[in]         elementsPerPage   The size of elements per page.
+ */
 void PhysicsPage_Init(C3D_PhysicsPage* out, unsigned int elementSize, unsigned int elementsPerPage)
 {
 	out->blockSize = elementSize;
@@ -193,6 +237,10 @@ void PhysicsPage_Init(C3D_PhysicsPage* out, unsigned int elementSize, unsigned i
 	out->freeList = NULL;
 }
 
+/**
+ * @brief Releases the memory from the C3D_PhysicsPage object. This is also used for clearing the C3D_PhysicsPage object. If out is NULL, it will crash.
+ * @param[in,out]     out     The resulting C3D_PhysicsPage to be released.
+ */
 void PhysicsPage_Free(C3D_PhysicsPage* out)
 {
 	Page* page = out->pages;
@@ -206,6 +254,11 @@ void PhysicsPage_Free(C3D_PhysicsPage* out)
 	out->pagesCount = 0;
 }
 
+/**
+ * @brief Allocates new memory to the C3D_PhysicsPage object. if pageAllocator is NULL, it will crash.
+ * @param[in,out]    pageAllocator    The C3D_PhysicsPage object. Here, this object handles the allocation of pages.
+ * @return The page data that was most recently modified (allocated/deallocated).
+ */
 void* PhysicsPage_Allocate(C3D_PhysicsPage* pageAllocator)
 {
 	if (pageAllocator->freeList)
@@ -236,6 +289,11 @@ void* PhysicsPage_Allocate(C3D_PhysicsPage* pageAllocator)
 	}
 }
 
+/**
+ * @brief Releases the allocated memory from the C3D_PhysicsPage object. If pageAllocator is NULL, it will crash.
+ * @param[in,out]   pageAllocator    The C3D_PhysicsPage object to release the allocated memory from.
+ * @param[in]       data             The pointer to the data that the C3D_PhysicsPage is referencing from to release.
+ */
 void PhysicsPage_Deallocate(C3D_PhysicsPage* pageAllocator, void* data)
 {
 #ifdef _PHYSICS_DEBUG
@@ -248,10 +306,8 @@ void PhysicsPage_Deallocate(C3D_PhysicsPage* pageAllocator, void* data)
 			break;
 		}
 	}
-	
 	assert(found);
 #endif
-	
 	((PageBlock*) data)->next = pageAllocator->freeList;
 	pageAllocator->freeList = ((PageBlock*) data);
 }
