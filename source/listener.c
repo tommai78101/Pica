@@ -6,6 +6,8 @@
 
 /**
  * @brief This is where you write your very own Listener_Init() function. This function's purpose is to initialize your C3D_ContactListener object.
+ * @note By default, the default virtual method table (v-table) has been given. If you wish to use your own methods and implementations, you need to use the struct object,
+ *       C3D_ContactListener_FuncTable, to store your function pointers, then pass it to the C3D_ContactListener object's v-table.
  * @param[in,out]        this            Expect to pass in a pointer to the C3D_ContactListener object, and fill in or initialize the data structure. 
  */
 void Listener_Init(C3D_ContactListener* listener)
