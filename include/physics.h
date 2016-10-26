@@ -299,18 +299,18 @@ typedef struct C3D_ContactState
 typedef struct C3D_ContactConstraintState 
 {
 	int contactCount;
-	int indexBodyA;           //Index of body A in the cache of C3D_Body object pointers.
-	int indexBodyB;           //Index of body B in the cache of C3D_Body object pointers.
-	float indexMassA;         //Index of mass A.
-	float indexMassB;         //Index of mass B.
+	unsigned int indexBodyA;           //Index of body A in the cache of C3D_Body object pointers.
+	unsigned int indexBodyB;           //Index of body B in the cache of C3D_Body object pointers.
+	float inverseMassA;                //Inverse of mass A, respective to the world transform.
+	float inverseMassB;                //Inverse of mass B, respective to the world transform.
 	float restitution;
 	float friction;
 	C3D_FVec tangentVectors[2];
-	C3D_FVec normal;          //From shape A to shape B.
+	C3D_FVec normal;                   //From shape A to shape B.
 	C3D_FVec centerA;
 	C3D_FVec centerB;
-	C3D_Mtx inverseMassA;     //Inverse mass of body A.
-	C3D_Mtx inverseMassB;     //Inverse mass of body B.
+	C3D_Mtx inertiaA;                  //Inertia of body A.
+	C3D_Mtx inertiaB;                  //Inertia of body B.
 	struct C3D_ContactState contactStates[8];
 } C3D_ContactConstraintState;
 
@@ -440,8 +440,8 @@ typedef struct C3D_Island
 	int iterations;
 	unsigned int bodyCapacity;
 	unsigned int bodyCount;
-	unsigned int contactConstraintStateCount;
-	unsigned int contactConstraintStateCapacity;
+	unsigned int contactConstraintCount;
+	unsigned int contactConstraintCapacity;
 	float deltaTime;
 	C3D_FVec gravity;
 	struct C3D_Body** bodies;
@@ -453,7 +453,7 @@ typedef struct C3D_Island
 typedef struct C3D_ContactSolver 
 {
 	bool enableFriction;
-	unsigned int contactConstraintStateCount;
+	unsigned int contactConstraintCount;
 	struct C3D_Island* island;
 	struct C3D_ContactConstraintState* contactConstraintStates;
 	struct C3D_VelocityState* velocityStates;
@@ -1521,12 +1521,36 @@ void Collision_BoxToBox(C3D_Manifold* manifold, C3D_Box* boxA, C3D_Box* boxB);
  **************************************************/
 
 /**
+ * @brief Initializes the C3D_Island object.
+ * @param[in,out]         island             The resulting C3D_Island object.
+ */
+void Island_Init(C3D_Island* island);
+
+/**
+ * @brief Adds a C3D_Body body object to the C3D_Island object.
+ * @param[in,out]      island         The resulting C3D_Island object.
+ * @param[in]          body           The C3D_Body object to add to the C3D_Island object. The C3D_Body object will use the previous C3D_Island's total C3D_Body count as its index.
+ */
+void Island_AddBody(C3D_Island* island, C3D_Body* const body);
+
+/**
+ * @brief Adds a C3D_ContactConstraint constraint state to the C3D_Island object.
+ * @param[in,out]     island                    The resulting C3D_Island object.
+ * @param[in]         contactConstraint         The C3D_ContactConstraint constraint state to add to the C3D_Island object.
+ */
+void Island_AddContactConstraint(C3D_Island* island, C3D_ContactConstraint* const constraint);
+
+/**
  * @brief Updates all C3D_Body objects' contact points, validate them, and handle sleeping objects.
+ * @note From Box2D - Applies damping.
+         Ordinary differential equation (ODE): dv/dt + c * v = 0
+         Solution: v(t) = v0 * exp(-c * t)
+         Time step: v(t + dt) = v0 * exp(-c * (t + dt)) = v0 * exp(-c * t) * exp(-c * dt) = v * exp(-c * dt)
+                    v2 = exp(-c * dt) * v1
+         Padé approximation: v2 = v1 * 1 / (1 + c * dt)
  * @param[in,out]     island     The resulting C3D_Island object to update/validate. 
  */
 void Island_Solve(C3D_Island* island);
-
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Island.cpp
 
 /**************************************************
  * Contact Listener Functions (C++ virtual function, Listener)

@@ -1,7 +1,74 @@
 #include "physics.h"
 
 /**
+ * @brief Initializes the C3D_Island object.
+ * @param[in,out]         island             The resulting C3D_Island object.
+ */
+void Island_Init(C3D_Island* island)
+{
+	for (unsigned int i = 0; i < island->contactConstraintCount; i++)
+	{
+		C3D_ContactConstraint* constraint = island->contactConstraints[i];
+		C3D_ContactConstraintState* constraintState = island->contactConstraintStates + i;
+		constraintState->centerA = constraint->bodyA->worldCenter;
+		constraintState->inertiaA = constraint->bodyA->inverseInertiaWorld;
+		constraintState->inverseMassA = constraint->bodyA->inverseMass;
+		constraintState->indexBodyA = constraint->bodyA->islandIndex;
+		constraintState->centerB = constraint->bodyB->worldCenter;
+		constraintState->inertiaB = constraint->bodyB->inverseInertiaWorld;
+		constraintState->inverseMassB = constraint->bodyB->inverseMass;
+		constraintState->indexBodyB = constraint->bodyB->islandIndex;
+		constraintState->restitution = constraint->restitution;
+		constraintState->friction = constraint->friction;
+		constraintState->normal = constraint->manifold.normal;
+		constraintState->tangentVectors[0] = constraint->manifold.tangentVectors[0];
+		constraintState->tangentVectors[1] = constraint->manifold.tangentVectors[1];
+		constraintState->contactCount = constraint->manifold.contactsCount;
+		for (int j = 0; j < constraintState->contactCount; j++)
+		{
+			C3D_ContactState* state = constraintState->contactStates + j;
+			C3D_Contact* contact = constraint->manifold.contacts + j;
+			state->radiusContactA = FVec3_Subtract(contact->position, constraintState->centerA);
+			state->radiusContactB = FVec3_Subtract(contact->position, constraintState->centerB);
+			state->penetration = contact->penetration;
+			state->normalImpulse = contact->normalImpulse;
+			state->tangentImpulse[0] = contact->tangentImpulse[0];
+			state->tangentImpulse[1] = contact->tangentImpulse[1];
+		}
+	}
+}
+
+/**
+ * @brief Adds a C3D_Body body object to the C3D_Island object.
+ * @param[in,out]      island         The resulting C3D_Island object.
+ * @param[in]          body           The C3D_Body object to add to the C3D_Island object. The C3D_Body object will use the previous C3D_Island's total C3D_Body count as its index.
+ */
+void Island_AddBody(C3D_Island* island, C3D_Body* const body)
+{
+	assert(island->bodyCount < island->bodyCapacity);
+	body->islandIndex = island->bodyCount;
+	island->bodies[island->bodyCount++] = body;
+}
+
+/**
+ * @brief Adds a C3D_ContactConstraint constraint state to the C3D_Island object.
+ * @param[in,out]     island                    The resulting C3D_Island object.
+ * @param[in]         contactConstraint         The C3D_ContactConstraint constraint state to add to the C3D_Island object.
+ */
+void Island_AddContactConstraint(C3D_Island* island, C3D_ContactConstraint* const constraint)
+{
+	assert(island->contactConstraintCount < island->contactConstraintCapacity);
+	island->contactConstraints[island->contactConstraintCount++] = constraint;
+}
+
+/**
  * @brief Updates all C3D_Body objects' contact points, validate them, and handle sleeping objects.
+ * @note From Box2D - Applies damping.
+         Ordinary differential equation (ODE): dv/dt + c * v = 0
+         Solution: v(t) = v0 * exp(-c * t)
+         Time step: v(t + dt) = v0 * exp(-c * (t + dt)) = v0 * exp(-c * t) * exp(-c * dt) = v * exp(-c * dt)
+                    v2 = exp(-c * dt) * v1
+         Padé approximation: v2 = v1 * 1 / (1 + c * dt)
  * @param[in,out]     island     The resulting C3D_Island object to update/validate. 
  */
 void Island_Solve(C3D_Island* island)
