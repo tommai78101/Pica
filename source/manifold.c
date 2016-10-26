@@ -1,5 +1,9 @@
 #include "physics.h"
 
+/*
+ * MANIFOLD.C 
+ */
+
 /**
  * @brief Sets the C3D_Manifold object to store the C3D_Box pair, boxA and boxB. The C3D_Manifold object is used for solving collisions.
  * @param[in,out]    manifold       The resulting C3D_Manifold to store the C3D_Box pair, A and B.

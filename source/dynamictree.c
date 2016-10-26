@@ -1,5 +1,9 @@
 #include "physics.h"
 
+/*
+ * DYNAMICTREE.C 
+ */
+
 /**
  * @brief Adds the index to the list of free C3D_DynamicAABBTreeNode objects available for use. This means the C3D_DynamicAABBTreeNode object and subsequent nodes will be cleared away.
  * @param[in,out]     tree     The resulting C3D_DynamicAABBTree object to clear the nodes in.

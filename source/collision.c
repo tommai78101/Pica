@@ -1,5 +1,9 @@
 #include "physics.h"
 
+/*
+ * COLLISION.C 
+ */
+
 /**
  * @brief Tracks an axis from a face and checks if the current separation value is positive, else re-adjusts the separation value, current axis, and current axis normal. 
  * @note The Separating Axis Theorem is often used to check for collisions between two simple polygons, thus guessing this function is part of the Separating Axis Theorem. 

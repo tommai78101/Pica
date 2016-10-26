@@ -1,5 +1,9 @@
 #include "physics.h"
 
+/*
+ * MANAGER.C 
+ */
+
 /**
  * @brief Initializes the C3D_ContactManager object with the provided C3D_PhysicsStack memory stack.
  * @param[in,out]    manager          The resulting C3D_ContactManager object.
