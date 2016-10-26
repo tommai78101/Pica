@@ -21,7 +21,8 @@ void Listener_Init(C3D_ContactListener* listener)
  */
 void Listener_Free(C3D_ContactListener* listener)
 {
-	//Listener_Free() - Unimplemented method: Requires virtualizing this function, or just leave it empty.
+	//Listener_Free() - Unimplemented method: Requires virtualizing this function, or just leave it empty. If you do any memory allocation in the Listener_Init(), you must explicitly
+	//                  handle memory deallocation on your own, and that must be implemented here.
 }
 
 /**
