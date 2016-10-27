@@ -740,20 +740,12 @@ void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize);
  */
 void PhysicsStack_Deallocate(C3D_PhysicsStack* stack, void* data);
 
-//TODO: Move this.
-void PhysicsStack_Reserve(C3D_PhysicsStack* stack, unsigned int size)
-{
-	assert(stack->index);
-	if (size == 0)
-		return;
-	if (size >= stack->stackSize)
-	{
-		if (stack->memory)
-			linearFree(stack->memory);
-		stack->memory = (u8*) linearAlloc(size);
-		stack->stackSize = size;
-	}
-}
+/**
+ * @brief Reserve specified size of memory on the PhysicsStack stack for later use.
+ * @param[in,out]         stack            The resulting C3D_PhysicsStack memory stack.
+ * @param[in]             size             The size of the memory to reserve, in bytes.
+ */
+void PhysicsStack_Reserve(C3D_PhysicsStack* stack, unsigned int size);
 
 /**
  * @brief Initializes the C3D_PhysicsHeap object.
