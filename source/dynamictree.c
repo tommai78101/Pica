@@ -389,7 +389,7 @@ void* Tree_GetUserData(C3D_DynamicAABBTree* tree, const unsigned int id)
  * @param[in]          broadphase       The C3D_Broadphase object to update.
  * @param[in]          aabb             The C3D_AABB object to validate with.
  */
-void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* const broadphase, const C3D_AABB* aabb)
+void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D_AABB* aabb)
 {
 	const int stackCapacity = 256;
 	int stack[stackCapacity];
@@ -405,6 +405,39 @@ void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* const broadphase, con
 			if (TreeNode_IsLeaf(node))
 			{
 				if (!Broadphase_TreeCallback(broadphase, id))
+					return;
+			}
+			else 
+			{
+				stack[stackPointer++] = node->left;
+				stack[stackPointer++] = node->right;
+			}
+		}
+	}
+}
+
+/**
+ * @brief Queries for information to retrieve from the C3D_DynamicAABBTree tree.
+ * @param[in,out]      tree             The C3D_DynamicAABBTree tree object to query through.
+ * @param[in]          wrapper       The C3D_SceneQueryWrapper wrapper that contains user-defined callbacks.
+ * @param[in]          aabb             The C3D_AABB object to validate with.
+ */
+void Tree_QueryWrapper(C3D_DynamicAABBTree* tree, C3D_SceneQueryWrapper* wrapper, const C3D_AABB* aabb)
+{
+	const int stackCapacity = 256;
+	int stack[stackCapacity];
+	int stackPointer = 1;
+	*stack = tree->root;
+	while (stackPointer)
+	{
+		assert(stackPointer < stackCapacity);
+		int id = stack[--stackPointer];
+		const C3D_DynamicAABBTreeNode* node = tree->nodes + id;
+		if (AABB_CollidesAABB(aabb, &node->aabb))
+		{
+			if (TreeNode_IsLeaf(node))
+			{
+				if (!QueryWrapper_TreeCallback(wrapper, id))
 					return;
 			}
 			else 

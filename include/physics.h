@@ -412,6 +412,27 @@ typedef struct C3D_ContactManager
 	struct C3D_Broadphase broadphase;
 } C3D_ContactManager;
 
+typedef struct C3D_QueryCallback 
+{
+	struct C3D_QueryCallback_FuncTable* vmt;
+} C3D_QueryCallback;
+
+typedef struct C3D_QueryCallback_FuncTable 
+{
+	void (*Free)(struct C3D_QueryCallback*);
+	bool (*ReportShape)(struct C3D_QueryCallback*, C3D_Box* box);
+} C3D_QueryCallback_FuncTable;
+
+/**
+ * @note For use only with Scene_QueryAABB() function.
+ */
+typedef struct C3D_SceneQueryWrapper 
+{
+	C3D_QueryCallback* callback;
+	const C3D_Broadphase* broadphase;
+	C3D_AABB aabb;
+} C3D_SceneQueryWrapper;
+
 typedef struct C3D_Scene 
 {
 	bool newBox;
@@ -1430,6 +1451,14 @@ void* Tree_GetUserData(C3D_DynamicAABBTree* tree, const unsigned int id);
 void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* const broadphase, const C3D_AABB* aabb);
 
 /**
+ * @brief Queries for information to retrieve from the C3D_DynamicAABBTree tree.
+ * @param[in,out]      tree             The C3D_DynamicAABBTree tree object to query through.
+ * @param[in]          wrapper          The C3D_SceneQueryWrapper object containing a callback acquired from inquiring for C3D_AABB objects.
+ * @param[in]          aabb             The C3D_AABB object to validate with.
+ */
+void Tree_QueryWrapper(C3D_DynamicAABBTree* tree, C3D_SceneQueryWrapper* const wrapper, const C3D_AABB* aabb);
+
+/**
  * @brief Checks if the C3D_DynamicAABBTree tree object contains any invalid C3D_DynamicAABBTreeNode node positions, and aims to fix it.
  * @param[in,out]         tree              The resulting C3D_DynamicAABBTree tree object with the correct C3D_DynamicAABBTreeNode node positions.
  * @param[in]             index             The index of the C3D_DynamicAABBTreeNode node, for the validation to start from.
@@ -1449,7 +1478,6 @@ void Tree_Validate(C3D_DynamicAABBTree* tree);
  * @param[in]          aabb                  The C3D_AABB object to replace with the already existing C3D_AABB object, stored previously in the C3D_DynamicAABBTreeNode node with the given ID.
  */
 bool Tree_Update(C3D_DynamicAABBTree* tree, const unsigned int id, const C3D_AABB* aabb);
-
 
 /**************************************************
  * Contact Manager Functions (Manager)
@@ -1508,7 +1536,9 @@ void Manager_CollisionResponse(C3D_ContactManager* manager);
 
 /**
  * @brief Renders the C3D_ContactConstraint objects.
+
  * @param[in,out]      manager        The resulting C3D_ContactManager manager object.
+ * 
  */
 //TODO: Work on the rendering stuffs.
 void Manager_RenderConstraints(C3D_ContactManager* manager);
@@ -1749,6 +1779,11 @@ void Island_Solve(C3D_Island* island);
  **************************************************/
 
 /**
+ * @note Contact listeners are used to gather information about two shapes colliding. These can be used for game logic and sounds. Physics objects created in these
+ *       callbacks will not be reported until the following frame. These callbacks can be called frequently, so to make them efficient.
+ */
+
+/**
  * @brief This is where you write your very own Listener_Init() function. This function's purpose is to initialize your C3D_ContactListener object.
  * @param[in,out]        this            Expect to pass in a pointer to the C3D_ContactListener object, and fill in or initialize the data structure. 
  */
@@ -1784,6 +1819,45 @@ void Listener_EndContact(C3D_ContactListener* this, const C3D_ContactConstraint*
 C3D_ContactListener_FuncTable Listener_Default_VMT = {Listener_Init, Listener_Free, Listener_BeginContact, Listener_EndContact};
 
 /**************************************************
+ * Query Callbacks Functions / Scene Query Wrapper Functions (QueryCallback)
+ **************************************************/
+
+/**
+ * @note This structure represents general queries for points, AABBs and Raycasting.
+ *       ReportShape is called the moment a valid shape is found. The return
+ *       value of ReportShape controls whether to continue or stop the query.
+ *       By returning only true, all shapes that fulfill the query will be re-
+ *       ported.
+ */
+
+/**
+ * @brief Releases / Destroys the C3D_QueryCallback object. By default, it does nothing. Must manually handle resources.
+ * @param[in,out]          queryCallback               Expect to pass in a pointer to the C3D_QueryCallback object.
+ */
+void QueryCallback_Free(C3D_QueryCallback* queryCallback);
+
+/**
+ * @brief User-defined callback function. By default, it reports what shape it is.
+ * @param[in,out]          queryCallback               Expect to pass in a pointer to the C3D_QueryCallback object.
+ * @param[in]              box                The C3D_Box object to report its shape with.
+ */
+bool QueryCallback_ReportShape(C3D_QueryCallback* queryCallback, C3D_Box* box);
+
+C3D_QueryCallback_FuncTable QueryCallback_Default_VMT = {QueryCallback_Free, QueryCallback_ReportShape};
+
+/**************************************************
+ * Scene Query Wrapper Functions (QueryWrapper)
+ **************************************************/
+
+/**
+ * @brief Handles the callback acquired.
+ * @param[in,out]        wrapper              The resulting C3D_SceneQueryWrapper object for acquiring the callback.
+ * @param[in]            id                   The tree node's ID. Used to gather user data from the tree node. 
+ */
+bool QueryWrapper_TreeCallback(C3D_SceneQueryWrapper* wrapper, unsigned int id);
+
+
+/**************************************************
  * Scene Functions (Scene)
  **************************************************/
 
@@ -1800,15 +1874,72 @@ void Scene_Init(C3D_Scene* scene, const float deltaTime, const C3D_FVec gravity,
  * @brief Releases / Shuts down / Destroys the C3D_Scene scene object.
  * @param[in,out]         scene           The resulting C3D_Scene scene object.
  */
-static inline void Scene_Free(C3D_Scene* scene)
-{
-	//TODO: Just implement Scene_Shutdown() here.
-}
+void Scene_Free(C3D_Scene* scene);
 
-/*
+/**
  * @brief Updates the C3D_Scene by 1 tick.
  * @param[in,out]         scene           The resulting C3D_Scene object.
  */
 void Scene_Step(C3D_Scene* scene);
+
+/**
+ * @brief Creates a new C3D_Body based on the given C3D_BodyParameters, and then adds the new C3D_Body to the C3D_Scene.
+ * @param[in,out]         scene           The resulting C3D_Scene object.
+ * @param[in]             parameters      The C3D_BodyParameters body properties structure.
+ * @return A pointer to the newly created C3D_Body object.
+ */
+C3D_Body* Scene_CreateBody(C3D_Scene* scene, const C3D_BodyParameters* parameters);
+
+/**
+ * @brief Removes the given C3D_Body object from the C3D_Scene object.
+ * @param[in,out]          scene               The resulting C3D_Scene object.
+ * @param[in]              body                The C3D_Body object to remove from the C3D_Scene object.
+ */
+void Scene_RemoveBody(C3D_Scene* scene, C3D_Body* body);
+
+/**
+ * @brief Removes all C3D_Body objects from the C3D_Scene object.
+ * @param[in,out]           scene              The resulting C3D_Scene object.
+ */
+void Scene_RemoveAllBodies(C3D_Scene* scene);
+
+/**
+ * @brief Set the C3D_Scene to allow C3D_Body objects to sleep or not.
+ * @param[in,out]           scene              The resulting C3D_Scene object.
+ * @param[in]               sleepFlag          Boolean value for toggling the flag.
+ */
+void Scene_SetAllowSleep(C3D_Scene* scene, const bool sleepFlag);
+
+/**
+ * @brief Set the number of iterations for the physics to step in the C3D_Scene object.
+ * @param[in,out]              scene              The resulting C3D_Scene object.
+ * @param[in]                  iterations         The number of iterations to step.
+ */
+static inline void Scene_SetIterations(C3D_Scene* scene, const int iterations)
+{
+	scene->iterations = (iterations > 1 ? iterations : 1);
+}
+
+void Scene_Render(C3D_Scene* scene);
+
+/**
+ * @brief Set a Contact Listener object to the C3D_Scene object.
+ * @param[in,out]           scene          The resulting C3D_Scene object.
+ * @param[in]               listener       The Contact Listener object.
+ */
+static inline void Scene_SetContactListener(C3D_Scene* scene, C3D_ContactListener* listener)
+{
+	scene->contactManager.contactListener = listener;
+}
+
+// TODO: Finish this.
+// https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.cpp#L346
+/**
+ * @brief Inquiries for the given C3D_AABB object and gets a C3D_QueryCallback object.
+ * @param[in,out]            scene          The resulting C3D_Scene object.
+ * @param[out]               callback       The C3D_QueryCallback structure to retrieve.
+ * @param[in]                aabb           The C3D_AABB to query the callback from.
+ */
+void Scene_QueryAABB(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_AABB* aabb);
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.cpp

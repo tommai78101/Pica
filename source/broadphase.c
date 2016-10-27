@@ -211,3 +211,6 @@ bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index)
 	broadphase->pairCount++;
 	return true;
 }
+
+//TODO: There's more callbacks you need to add.
+// https://github.com/RandyGaul/qu3e/blob/master/src/broadphase/q3DynamicAABBTree.inl#L86

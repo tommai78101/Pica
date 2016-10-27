@@ -44,17 +44,13 @@ void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize)
 		memcpy(stack->entries, oldEntries, sizeof(C3D_PhysicsStackEntry) * stack->entryCount);
 		linearFree(oldEntries);
 	}
-	
 	C3D_PhysicsStackEntry* entry = stack->entries + stack->entryCount;
 	entry->size = newSize;
-	
 	assert(stack->index + newSize <= C3D_PHYSICSSTACK_MAX_SIZE);
-	
 	entry->data = stack->memory + stack->index;
 	stack->index += newSize;
 	stack->allocation += newSize;
 	stack->entryCount++;
-	
 	return entry->data;
 }
 
@@ -66,11 +62,8 @@ void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize)
 void PhysicsStack_Deallocate(C3D_PhysicsStack* stack, void* data)
 {
 	assert(stack->entryCount > 0);
-	
 	C3D_PhysicsStackEntry* entry = stack->entries + stack->entryCount - 1;
-	
 	assert(data == entry->data);
-	
 	stack->index -= entry->size;
 	stack->allocation -= entry->size;
 	stack->entryCount--;
@@ -172,7 +165,6 @@ void* PhysicsHeap_Allocate(C3D_PhysicsHeap* heap, unsigned int newSize)
 void PhysicsHeap_Deallocate(C3D_PhysicsHeap* heap, void* data)
 {
 	assert(data);
-	
 	HeapHeader* node = (HeapHeader*) MACRO_POINTER_ADD(data, -(unsigned int)(sizeof(HeapHeader)));
 	HeapHeader* next = node->next;
 	HeapHeader* previous = node->previous;
@@ -192,7 +184,6 @@ void PhysicsHeap_Deallocate(C3D_PhysicsHeap* heap, void* data)
 			previousBlockIndex = i;
 		}
 	}
-	
 	bool merged = false;
 	if (previousBlock)
 	{
@@ -227,7 +218,6 @@ void PhysicsHeap_Deallocate(C3D_PhysicsHeap* heap, void* data)
 			nextNext->previous = node;
 		node->next = nextNext;
 	}
-	
 	if (!merged)
 	{
 		HeapFreeBlock block;

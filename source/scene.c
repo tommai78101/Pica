@@ -21,6 +21,16 @@ void Scene_Init(C3D_Scene* scene, const float deltaTime, const C3D_FVec gravity,
 	scene->enableFriction = true;
 }
 
+/**
+ * @brief Releases / Shuts down / Destroys the C3D_Scene scene object.
+ * @param[in,out]         scene           The resulting C3D_Scene scene object.
+ */
+void Scene_Free(C3D_Scene* scene)
+{
+	Scene_RemoveAllBodies(scene);
+	PhysicsPage_Free(&scene->boxPageAllocator);
+}
+
 /*
  * @brief Updates the C3D_Scene by 1 tick.
  * @param[in,out]         scene           The resulting C3D_Scene object.
@@ -119,3 +129,93 @@ void Scene_Step(C3D_Scene* scene)
 	}
 }
 
+/**
+ * @brief Creates a new C3D_Body based on the given C3D_BodyParameters, and then adds the new C3D_Body to the C3D_Scene.
+ * @param[in,out]         scene           The resulting C3D_Scene object.
+ * @param[in]             parameters      The C3D_BodyParameters body properties structure.
+ * @return A pointer to the newly created C3D_Body object.
+ */
+C3D_Body* Scene_CreateBody(C3D_Scene* scene, const C3D_BodyParameters* parameters)
+{
+	C3D_Body* body = (C3D_Body*) PhysicsHeap_Allocate(&scene->heap, sizeof(C3D_Body));
+	Body_InitWithParameters(body, scene, parameters);
+	body->previous = NULL;
+	body->next = scene->bodyList;
+	if (scene->bodyList)
+		scene->bodyList->previous = body;
+	scene->bodyList = body;
+	--scene->bodyCount;
+	return body;
+}
+
+/**
+ * @brief Removes the given C3D_Body object from the C3D_Scene object.
+ * @param[in,out]          scene               The resulting C3D_Scene object.
+ * @param[in]              body                The C3D_Body object to remove from the C3D_Scene object.
+ */
+void Scene_RemoveBody(C3D_Scene* scene, C3D_Body* body)
+{
+	assert(scene->bodyCount > 0);
+	Manager_RemoveConstraintsFromBody(&scene->contactManager, body);
+	Body_RemoveAllBoxes(body);
+	if (body->next)
+		body->next->previous = body->previous;
+	if (body->previous)
+		body->previous->next = body->next;
+	--scene->bodyCount;
+	PhysicsHeap_Deallocate(&scene->heap, body);
+}
+
+/**
+ * @brief Removes all C3D_Body objects from the C3D_Scene object.
+ * @param[in,out]           scene              The resulting C3D_Scene object.
+ */
+void Scene_RemoveAllBodies(C3D_Scene* scene)
+{
+	C3D_Body* body = scene->bodyList;
+	while (body)
+	{
+		C3D_Body* next = body->next;
+		Body_RemoveAllBoxes(body);
+		PhysicsHeap_Deallocate(&scene->heap, body);
+		body = next;
+	}
+	scene->bodyList = NULL;
+}
+
+/**
+ * @brief Set the C3D_Scene to allow C3D_Body objects to sleep or not.
+ * @param[in,out]           scene              The resulting C3D_Scene object.
+ * @param[in]               sleepFlag          Boolean value for toggling the flag.
+ */
+void Scene_SetAllowSleep(C3D_Scene* scene, const bool sleepFlag)
+{
+	scene->allowSleep = sleepFlag;
+	if (!scene->allowSleep)
+	{
+		for (C3D_Body* body = scene->bodyList; body; body = body->next)
+			Body_SetAwake(body);
+	}
+}
+
+void Scene_Render(C3D_Scene* scene)
+{
+	//TODO: Render the scene
+}
+
+// TODO: Finish this.
+// https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.cpp#L346
+/**
+ * @brief Inquiries for the given C3D_AABB object and gets a C3D_QueryCallback object.
+ * @param[in,out]            scene          The resulting C3D_Scene object.
+ * @param[out]               callback       The C3D_QueryCallback structure to retrieve.
+ * @param[in]                aabb           The C3D_AABB to query the callback from.
+ */
+void Scene_QueryAABB(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_AABB* aabb)
+{
+	C3D_SceneQueryWrapper wrapper;
+	wrapper.aabb = *aabb;
+	wrapper.broadphase = &scene->contactManager.broadphase;
+	wrapper.callback = callback;
+	Tree_QueryWrapper(scene->contactManager.broadphase.tree, &wrapper, aabb);
+}
