@@ -203,19 +203,39 @@ void Scene_Render(C3D_Scene* scene)
 	//TODO: Render the scene
 }
 
-// TODO: Finish this.
-// https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.cpp#L346
 /**
- * @brief Inquiries for the given C3D_AABB object and gets a C3D_QueryCallback object.
+ * @brief Inquiries for the given C3D_AABB object and executes a C3D_QueryCallback callback.
  * @param[in,out]            scene          The resulting C3D_Scene object.
- * @param[out]               callback       The C3D_QueryCallback structure to retrieve.
+ * @param[out]               callback       The C3D_QueryCallback structure to query for.
  * @param[in]                aabb           The C3D_AABB to query the callback from.
  */
 void Scene_QueryAABB(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_AABB* aabb)
 {
 	C3D_SceneQueryWrapper wrapper;
+	wrapper.wrapperType = WrapperType_AABB;
 	wrapper.aabb = *aabb;
 	wrapper.broadphase = &scene->contactManager.broadphase;
 	wrapper.callback = callback;
 	Tree_QueryWrapper(scene->contactManager.broadphase.tree, &wrapper, aabb);
+}
+
+/**
+ * @brief Inquiries for the given point and executes a C3D_QueryCallback callback.
+ * @param[in,out]            scene          The resulting C3D_Scene object.
+ * @param[in]                callback       The C3D_QueryCallback structure to query for.
+ * @param[in]                point          The C3D_FVec point.
+ */
+void Scene_QueryPoint(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_FVec point)
+{
+	C3D_SceneQueryWrapper wrapper;
+	wrapper.wrapperType = WrapperType_Point;
+	wrapper.point = point;
+	wrapper.broadphase = &scene->contactManager.broadphase;
+	wrapper.callback = callback;
+	const float kFattener = 0.5f;
+	C3D_FVec vertex = FVec3_New(kFattener, kFattener, kFattener);
+	C3D_AABB aabb;
+	aabb.min = FVec3_Subtract(point, vertex);
+	aabb.max = FVec3_Add(point, vertex);
+	Tree_QueryWrapper(scene->contactManager.broadphase.tree, &wrapper, &aabb);
 }

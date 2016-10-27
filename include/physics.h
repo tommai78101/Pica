@@ -67,6 +67,12 @@ typedef enum C3D_BodyFlag
 	BodyFlag_LockAxisZ     = 0x400,
 } C3D_BodyFlag;
 
+typedef enum C3D_SceneQueryWrapperType 
+{
+	WrapperType_AABB,
+	WrapperType_Point
+} SceneQueryWrapperType;
+
 /**************************************************
  * Basic Structures
  **************************************************/
@@ -428,9 +434,11 @@ typedef struct C3D_QueryCallback_FuncTable
  */
 typedef struct C3D_SceneQueryWrapper 
 {
-	C3D_QueryCallback* callback;
-	const C3D_Broadphase* broadphase;
 	C3D_AABB aabb;
+	C3D_FVec point;
+	enum C3D_SceneQueryWrapperType wrapperType;
+	struct C3D_QueryCallback* callback;
+	const C3D_Broadphase* broadphase;
 } C3D_SceneQueryWrapper;
 
 typedef struct C3D_Scene 
@@ -999,6 +1007,15 @@ static inline float Box_MixRestitution(const C3D_Box* A, const C3D_Box* B)
 {
 	return (A->restitution > B->restitution ? A->restitution : B->restitution);
 }
+
+/**
+ * @brief Tests if the given point is within the C3D_Box object's world boundaries.
+ * @param[in,out]           box            The resulting C3D_Box object.
+ * @param[in]               transform      The C3D_Transform transform from the C3D_Body object's local transform.
+ * @param[in]               point          The vertex point to test.
+ * @return True, if the given point is within the C3D_Box object's world boundaries. False, if otherwise.
+ */
+bool Box_TestPoint(C3D_Box* box, C3D_Transform* const transform, const C3D_FVec point);
 
 /**************************************************
  * Physics Body Properties Structure. (BodyParameters)
@@ -1932,14 +1949,20 @@ static inline void Scene_SetContactListener(C3D_Scene* scene, C3D_ContactListene
 	scene->contactManager.contactListener = listener;
 }
 
-// TODO: Finish this.
-// https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.cpp#L346
 /**
- * @brief Inquiries for the given C3D_AABB object and gets a C3D_QueryCallback object.
+ * @brief Inquiries for the given C3D_AABB object and executes a C3D_QueryCallback callback.
  * @param[in,out]            scene          The resulting C3D_Scene object.
- * @param[out]               callback       The C3D_QueryCallback structure to retrieve.
+ * @param[out]               callback       The C3D_QueryCallback structure to query for.
  * @param[in]                aabb           The C3D_AABB to query the callback from.
  */
 void Scene_QueryAABB(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_AABB* aabb);
+
+/**
+ * @brief Inquiries for the given point and executes a C3D_QueryCallback callback.
+ * @param[in,out]            scene          The resulting C3D_Scene object.
+ * @param[in]                callback       The C3D_QueryCallback structure to query for.
+ * @param[in]                point          The C3D_FVec point.
+ */
+void Scene_QueryPoint(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_FVec point);
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.cpp

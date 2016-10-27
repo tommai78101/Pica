@@ -130,3 +130,25 @@ void Box_ComputeMass(C3D_MassData* const out, C3D_Box* const box)
 	Mtx_Copy(&out->inertia, &inertiaMatrix);
 	out->mass = mass;
 }
+
+/**
+ * @brief Tests if the given point is within the C3D_Box object's world boundaries.
+ * @param[in,out]           box            The resulting C3D_Box object.
+ * @param[in]               transform      The C3D_Transform transform from the C3D_Body object's local transform.
+ * @param[in]               point          The vertex point to test.
+ * @return True, if the given point is within the C3D_Box object's world boundaries. False, if otherwise.
+ */
+bool Box_TestPoint(C3D_Box* box, C3D_Transform* const transform, const C3D_FVec point)
+{
+	C3D_Transform world;
+	Transform_Multiply(&world, transform, &box->localTransform);
+	C3D_FVec point0 = Transform_MultiplyTransformFVec(&world, point);
+	for (int i = 0; i < 3; i++)
+	{
+		float d = point0.c[3-i];
+		float extent = box->extent.c[3-i];
+		if (d > extent || d < extent)
+			return false;
+	}
+	return true;
+}

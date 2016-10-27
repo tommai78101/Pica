@@ -26,10 +26,26 @@ bool QueryCallback_ReportShape(C3D_QueryCallback* queryCallback, C3D_Box* box)
  */
 bool QueryWrapper_TreeCallback(C3D_SceneQueryWrapper* wrapper, unsigned int id)
 {
-	C3D_AABB aabb;
-	C3D_Box* box = (C3D_Box*) Tree_GetUserData(wrapper->broadphase->tree, id);
-	Box_ComputeAABB(&aabb, box, &box->body->transform);
-	if (AABB_CollidesAABB(&wrapper->aabb, &aabb))
-		return (wrapper->callback ? wrapper->callback->vmt->ReportShape(wrapper->callback, box) : false);
-	return true;
+	switch (wrapper->wrapperType)
+	{
+		case WrapperType_AABB:
+		{
+			C3D_AABB aabb;
+			C3D_Box* box = (C3D_Box*) Tree_GetUserData(wrapper->broadphase->tree, id);
+			Box_ComputeAABB(&aabb, box, &box->body->transform);
+			if (AABB_CollidesAABB(&wrapper->aabb, &aabb))
+				return (wrapper->callback ? wrapper->callback->vmt->ReportShape(wrapper->callback, box) : false);
+			return true;
+		}
+		case WrapperType_Point:
+		{
+			C3D_Box* box = (C3D_Box*) Tree_GetUserData(wrapper->broadphase->tree, id);
+			if (Box_TestPoint(box, &box->body->transform, wrapper->point))
+				(wrapper->callback ? wrapper->callback->vmt->ReportShape(wrapper->callback, box) : false);
+			return true;
+		}
+		default:
+			break;
+	}
+	return false;
 }
