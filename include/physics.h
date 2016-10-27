@@ -85,8 +85,6 @@ typedef struct C3D_PhysicsStackEntry
 
 typedef struct C3D_PhysicsStack 
 {
-	//TODO: Test this.
-	//u8 memory[C3D_PHYSICSSTACK_MAX_SIZE];
 	u8* memory;
 	unsigned int index;
 	unsigned int allocation;
