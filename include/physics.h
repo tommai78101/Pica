@@ -903,15 +903,7 @@ static inline C3D_FVec Transform_MultiplyTransformFVec(const C3D_Transform* tran
  * @param[in]            transform           The local C3D_Transform transform.
  * @param[in]            extents             The full extent of a C3D_Box box. Each element of the extents will be halved.
  */
-void BoxParameters_Init(C3D_BoxParameters* parameters, const C3D_Transform transform, const C3D_FVec extents)
-{
-	parameters->transform = transform;
-	parameters->extent = FVec3_Scale(extents, 0.5f);
-	parameters->restitution = 0.0f;
-	parameters->friction = 0.0f;
-	parameters->density = 0.0f;
-	parameters->sensor = false;
-}
+void BoxParameters_Init(C3D_BoxParameters* parameters, const C3D_Transform transform, const C3D_FVec extents);
 
 /**************************************************
  * Box Helper Functions. (Box)

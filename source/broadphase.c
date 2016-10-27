@@ -193,7 +193,6 @@ bool Broadphase_CanOverlap(C3D_Broadphase* broadphase, int A, int B)
  */
 bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index)
 {
-	//TODO: Convert this into a virtual function, or have some sort of wrapper to support user-defined callbacks
 	if (index == broadphase->currentIndex)
 		return true;
 	if (broadphase->pairCount == broadphase->pairCapacity)
@@ -211,6 +210,3 @@ bool Broadphase_TreeCallback(C3D_Broadphase* broadphase, int index)
 	broadphase->pairCount++;
 	return true;
 }
-
-//TODO: There's more callbacks you need to add.
-// https://github.com/RandyGaul/qu3e/blob/master/src/broadphase/q3DynamicAABBTree.inl#L86

@@ -5,6 +5,22 @@
  */
 
 /**
+ * @brief Initializes the C3D_BoxParameters box properties. You must manually set the values for restitution, friction, density, and sensor flag.
+ * @param[in,out]        parameters          The resulting C3D_BoxParameters box property.
+ * @param[in]            transform           The local C3D_Transform transform.
+ * @param[in]            extents             The full extent of a C3D_Box box. Each element of the extents will be halved.
+ */
+void BoxParameters_Init(C3D_BoxParameters* parameters, const C3D_Transform transform, const C3D_FVec extents)
+{
+	parameters->transform = transform;
+	parameters->extent = FVec3_Scale(extents, 0.5f);
+	parameters->restitution = 0.0f;
+	parameters->friction = 0.0f;
+	parameters->density = 0.0f;
+	parameters->sensor = false;
+}
+
+/**
  * @brief Cast a ray
  * @note RandyGaul: The entire function performs box to ray and finds the hit point. Using the transpose lets one solve ray to AABB and still get the 
  *       correct results. Ray to AABB is easier than ray to OBB.
