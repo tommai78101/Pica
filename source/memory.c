@@ -15,6 +15,7 @@ void PhysicsStack_Init(C3D_PhysicsStack* out)
 	out->allocation = 0;
 	out->entryCount = 0;
 	out->entryCapacity = 64;
+	out->stackSize = 0;
 }
 
 /**

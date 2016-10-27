@@ -13,7 +13,7 @@ void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack)
 {
 	manager->stack = stack;
 	PhysicsPage_Init(&manager->pageAllocator, sizeof(C3D_ContactConstraint), 256);
-	Broadphase_Init(manager->broadphase, manager);
+	Broadphase_Init(&manager->broadphase, manager);
 	manager->contactList = NULL;
 	manager->contactCount = 0;
 	manager->contactListener = NULL;
@@ -144,13 +144,13 @@ void Manager_RemoveBodyFromBroadphase(C3D_ContactManager* manager, C3D_Body* bod
 	C3D_Box* box = body->boxes;
 	while (box)
 	{
-		Broadphase_RemoveBox(manager->broadphase, box);
+		Broadphase_RemoveBox(&manager->broadphase, box);
 		box = box->next;
 	}
 }
 
 /**
- * @brief Handles collision checks.
+ * @brief Handles and tests collision checks.
  * @param[in,out]       manager           The resulting C3D_ContactManager manager object.
  */
 void Manager_CollisionResponse(C3D_ContactManager* manager)
@@ -174,7 +174,7 @@ void Manager_CollisionResponse(C3D_ContactManager* manager)
 			constraint = constraint->next;
 			continue;
 		}
-		if (!Broadphase_CanOverlap(manager->broadphase, boxA->broadPhaseIndex, boxB->broadPhaseIndex))
+		if (!Broadphase_CanOverlap(&manager->broadphase, boxA->broadPhaseIndex, boxB->broadPhaseIndex))
 		{
 			C3D_ContactConstraint* next = constraint->next;
 			Manager_RemoveConstraint(manager, constraint);

@@ -79,11 +79,13 @@ typedef struct C3D_PhysicsStackEntry
 
 typedef struct C3D_PhysicsStack 
 {
-	u8 memory[C3D_PHYSICSSTACK_MAX_SIZE];
+	//TODO: u8 memory[C3D_PHYSICSSTACK_MAX_SIZE];
+	u8* memory;
 	unsigned int index;
 	unsigned int allocation;
 	unsigned int entryCount;
 	unsigned int entryCapacity;
+	unsigned int stackSize;
 	struct C3D_PhysicsStackEntry* entries;
 } C3D_PhysicsStack;
 
@@ -156,6 +158,16 @@ typedef struct C3D_DynamicAABBTreeNode
 	void* userData;
 	C3D_AABB aabb;
 } C3D_DynamicAABBTreeNode;
+
+typedef struct C3D_BoxParameters 
+{
+	bool sensor;
+	float friction;
+	float restitution;
+	float density;
+	C3D_FVec extent;
+	C3D_Transform transform;
+} C3D_BoxParameters;
 
 /**
  * @note Extent: Half-extents, or the half size of a full axis-aligned bounding box volume. Center of the box, plus half width/height/depth.
@@ -314,16 +326,6 @@ typedef struct C3D_ContactConstraintState
 	struct C3D_ContactState contactStates[8];
 } C3D_ContactConstraintState;
 
-typedef struct C3D_ContactManager 
-{
-	int contactCount;
-	struct C3D_ContactConstraint* contactList;
-	struct C3D_PhysicsStack* stack;
-	struct C3D_PhysicsPage pageAllocator;
-	struct C3D_Broadphase* broadphase;
-	struct C3D_ContactListener* contactListener;
-} C3D_ContactManager;
-
 typedef struct C3D_BodyParameters 
 {
 	bool allowSleep;              //= true;                          // Toggles to let the C3D_Body body assume a non-moving state by sleeping, which can greatly reduce CPU usage.                                                      
@@ -400,9 +402,30 @@ typedef struct C3D_Broadphase
 	struct C3D_ContactPair* pairBuffer;
 } C3D_Broadphase;
 
+typedef struct C3D_ContactManager 
+{
+	unsigned int contactCount;
+	struct C3D_ContactConstraint* contactList;
+	struct C3D_PhysicsStack* stack;
+	struct C3D_ContactListener* contactListener;
+	struct C3D_PhysicsPage pageAllocator;
+	struct C3D_Broadphase broadphase;
+} C3D_ContactManager;
+
 typedef struct C3D_Scene 
 {
+	bool newBox;
+	bool allowSleep;
+	bool enableFriction;
+	int iterations;
+	unsigned int bodyCount;
+	float deltaTime;
+	C3D_FVec gravity;
 	struct C3D_ContactManager contactManager;
+	struct C3D_PhysicsPage boxPageAllocator;
+	struct C3D_Body* bodyList;
+	struct C3D_PhysicsStack stack;
+	struct C3D_PhysicsHeap heap;
 } C3D_Scene;
 
 /**
@@ -717,6 +740,21 @@ void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize);
  */
 void PhysicsStack_Deallocate(C3D_PhysicsStack* stack, void* data);
 
+//TODO: Move this.
+void PhysicsStack_Reserve(C3D_PhysicsStack* stack, unsigned int size)
+{
+	assert(stack->index);
+	if (size == 0)
+		return;
+	if (size >= stack->stackSize)
+	{
+		if (stack->memory)
+			linearFree(stack->memory);
+		stack->memory = (u8*) linearAlloc(size);
+		stack->stackSize = size;
+	}
+}
+
 /**
  * @brief Initializes the C3D_PhysicsHeap object.
  * @param[in,out]     out     The C3D_PhysicsHeap object to be initialized.
@@ -832,6 +870,26 @@ static inline C3D_FVec Transform_MultiplyTransformFVec(const C3D_Transform* tran
 {
 	C3D_FVec difference = FVec3_Subtract(vector, transform->position);
 	return Transform_MultiplyTransposeFVec(&transform->rotation, difference);
+}
+
+/**************************************************
+ * Box Parameters Properties Structure. (BoxParameters)
+ **************************************************/
+
+/**
+ * @brief Initializes the C3D_BoxParameters box properties. You must manually set the values for restitution, friction, density, and sensor flag.
+ * @param[in,out]        parameters          The resulting C3D_BoxParameters box property.
+ * @param[in]            transform           The local C3D_Transform transform.
+ * @param[in]            extents             The full extent of a C3D_Box box. Each element of the extents will be halved.
+ */
+void BoxParameters_Init(C3D_BoxParameters* parameters, const C3D_Transform transform, const C3D_FVec extents)
+{
+	parameters->transform = transform;
+	parameters->extent = FVec3_Scale(extents, 0.5f);
+	parameters->restitution = 0.0f;
+	parameters->friction = 0.0f;
+	parameters->density = 0.0f;
+	parameters->sensor = false;
 }
 
 /**************************************************
@@ -956,7 +1014,7 @@ void Body_Init(C3D_Body* body, C3D_Scene* scene);
  * @param[in]         scene          The C3D_Scene scene object.
  * @param[in]         parameter      The C3D_BodyParameters struct to initialize the C3D_Body object with.
  */
-void Body_ParametersInit(C3D_Body* body, C3D_Scene* scene, C3D_BodyParameters* parameters);
+void Body_InitWithParameters(C3D_Body* body, C3D_Scene* const scene, const C3D_BodyParameters* parameters);
 
 /**
  * @brief Helper function to set C3D_Body object flags. Note that all of the flags will be cleared before setting the properties.
@@ -971,11 +1029,26 @@ void Body_ParametersInit(C3D_Body* body, C3D_Scene* scene, C3D_BodyParameters* p
  */
 void Body_SetAllFlags(C3D_Body* body, C3D_BodyType type, bool sleep, bool awake, bool active, bool lockAxisX, bool lockAxisY, bool lockAxisZ);
 
-C3D_Box* Body_AddBox(C3D_Body* body)
-{
-	// TODO: Body_AddBox(): Requires C3D_Scene functions.
-	return NULL;
-}
+/**
+ * @brief Adds a C3D_Box box to the C3D_Body object, with the given C3D_BoxParameters box properties.
+ * @param[in,out]         body          The resulting C3D_Body object with the new C3D_Box box added.
+ * @param[in]             parameters    The C3D_Box box properties given.
+ * @return A pointer to the newly added C3D_Box box object.
+ */
+C3D_Box* Body_AddBox(C3D_Body* body, const C3D_BoxParameters* parameters);
+
+/**
+ * @brief Removes a C3D_Box box from the C3D_Body object.
+ * @param[in,out]         body            The resulting C3D_Body object.
+ * @param[in]             box             The C3D_Box box to remove from the C3D_Body object.
+ */
+void Body_RemoveBox(C3D_Body* body, const C3D_Box* box);
+
+/**
+ * @brief Removes every single C3D_Box box objects from the C3D_Body object.
+ * @param[in,out]         body           The resulting C3D_Body object.
+ */
+void Body_RemoveAllBoxes(C3D_Body* body);
 
 /**
  * @brief Checks of bodies of both C3D_Body objects can collide with each other.
@@ -984,12 +1057,6 @@ C3D_Box* Body_AddBox(C3D_Body* body)
  * @return True if both C3D_Body objects can collide. False, if otherwise.
  */
 bool Body_CanCollide(C3D_Body* this, const C3D_Body* other);
-
-/**
- * @brief Sets the C3D_Body to be in its Awake state.
- * @param[in,out]     body     The resulting C3D_Body object to set to the Awake state.
- */
-void Body_SetAwake(C3D_Body* body);
 
 /**
  * @brief Checks if C3D_Body is in Awake state.
@@ -1001,19 +1068,151 @@ static inline bool Body_IsAwake(C3D_Body* body)
 }
 
 /**
- * @brief Sets the C3D_Body to be asleep
- * @param[in,out]      body     The resulting C3D_Body object to set to the Asleep state.
- */
-void Body_SetSleep(C3D_Body* body);
-
-/**
  * @brief Applies linear force to the C3D_Body object, and sets the Awake flag on the C3D_Body object.
  * @param[in,out]      body        The resulting C3D_Body object.
  * @param[in]          force       The force vector. Needs to be normalized first. 
  */
 void Body_ApplyLinearForce(C3D_Body* body, const C3D_FVec force);
 
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/dynamics/q3Body.cpp
+/**
+ * @brief Applies linear force to the C3D_Body object, aiming from the given world point.
+ * @param[in,out]      body        The resulting C3D_Body object.
+ * @param[in]          force       The force vector. Needs to be normalized first.
+ * @param[in]          point       The point in the 3D space.
+ */
+void Body_ApplyLinearForceAtWorldPoint(C3D_Body* body, const C3D_FVec force, const C3D_FVec point);
+
+/**
+ * @brief Applies a linear impulse to the C3D_Body object.
+ * @param[in,out]      body        The resulting C3D_Body object.
+ * @param[in]          impulse     The integral of the force, over a period of time.
+ */
+void Body_ApplyLinearImpulse(C3D_Body* body, const C3D_FVec impulse);
+
+/**
+ * @brief Applies a linear impulse to the C3D_Body object.
+ * @param[in,out]      body        The resulting C3D_Body object.
+ * @param[in]          impulse     The integral of the force, over a period of time.
+ * @param[in]          point       The point in 3D space.
+ */
+void Body_ApplyLinearImpulseAtWorldPoint(C3D_Body* body, const C3D_FVec impulse, const C3D_FVec point);
+
+/**
+ * @brief Applies a twisting force to the C3D_Body object.
+ * @param[in,out]       body       The resulting C3D_Body object.
+ * @param[in]           torque     The moment of force.
+ */
+static inline void Body_ApplyTorque(C3D_Body* body, const C3D_FVec torque)
+{
+	body->torque = FVec3_Add(body->torque, torque);
+}
+
+/**
+ * @brief Obtains a point local to the C3D_Body in 3D space.
+ * @param[in]        body          The C3D_Body object relative to the point.
+ * @param[in]        point         The world point in 3D space.
+ */
+static const inline C3D_FVec Body_GetLocalPoint(const C3D_Body* body, const C3D_FVec point)
+{
+	return Transform_MultiplyTransformFVec(&body->transform, point);
+}
+
+/**
+ * @brief Obtains a vector local to the C3D_Body in 3D space.
+ * @param[in]        body           The C3D_Body object relative to the vector.
+ * @param[in]        vector         The world vector in 3D space. 
+ */
+static const inline C3D_FVec Body_GetLocalVector(const C3D_Body* body, const C3D_FVec vector)
+{
+	return Transform_MultiplyTransposeFVec(&body->transform.rotation, vector);
+}
+
+/**
+ * @brief Obtains a world point relative to the C3D_Body in 3D space.
+ * @param[in]        body          The C3D_Body object relative to the point.
+ * @param[in]        point         The world point in 3D space.
+ */
+static const inline C3D_FVec Body_GetWorldPoint(const C3D_Body* body, const C3D_FVec point)
+{
+	return FVec3_Add(Mtx_MultiplyFVec3(&body->transform.rotation, point), body->transform.position);
+}
+
+/**
+ * @brief Obtains a world vector relative to the C3D_Body in 3D space.
+ * @param[in]        body           The C3D_Body object relative to the vector.
+ * @param[in]        vector         The world vector in 3D space. 
+ */
+static const inline C3D_FVec Body_GetWorldVector(const C3D_Body* body, const C3D_FVec vector)
+{
+	return Mtx_MultiplyFVec3(&body->transform.rotation, vector);
+}
+
+/**
+ * @brief Obtains the C3D_Body's velocity at world point.
+ * @param[in]         body          The C3D_Body object.
+ * @param[in]         point         The world point in which the C3D_Body traverses through.
+ */
+const C3D_FVec Body_GetVelocityAtWorldPoint(const C3D_Body* body, const C3D_FVec point);
+
+/**
+ * @brief Sets the C3D_Body to be in its Awake state.
+ * @param[in,out]     body     The resulting C3D_Body object to set to the Awake state.
+ */
+void Body_SetAwake(C3D_Body* body);
+
+/**
+ * @brief Sets the C3D_Body to be asleep
+ * @param[in,out]      body     The resulting C3D_Body object to set to the Asleep state.
+ */
+void Body_SetSleep(C3D_Body* body);
+
+/**
+ * @brief Sets the linear velocity to the C3D_Body object.
+ * @param[in,out]      body                 The resulting C3D_Body object.
+ * @param[in]          linearVelocity       The new linear velocity.
+ */
+void Body_SetLinearVelocity(C3D_Body* body, const C3D_FVec linearVelocity);
+
+/**
+ * @brief Sets the angular velocity to the C3D_Body object.
+ * @param[in,out]      body                  The resulting C3D_Body object.
+ * @param[in]          angularVelocity       The new angular velocity.
+ */
+void Body_SetAngularVelocity(C3D_Body* body, const C3D_FVec angularVelocity);
+
+/**
+ * @brief Sets the position of the C3D_Body object, and synchronizes/updates accordingly.
+ * @param[in,out]            body             The resulting C3D_Body object.
+ * @param[in]                position         The new position for the C3D_Body object.
+ */
+void Body_SetTransformPosition(C3D_Body* body, const C3D_FVec position);
+
+/**
+ * @brief Sets the position and rotation of the C3D_Body object by position, axis, and angle, and synchronizes/updates accordingly.
+ * @param[in,out]            body             The resulting C3D_Body object.
+ * @param[in]                position         The new position for the C3D_Body object.
+ */
+void Body_SetTransformPositionAxisAngle(C3D_Body* body, const C3D_FVec position, const C3D_FVec axis, const float angle);
+
+/**
+ * Renders the C3D_Body to the screen.
+ */
+void Body_Render()
+{
+	//TODO: Handles rendering.
+}
+
+/**
+ * @brief Calculates the mass of the C3D_Body object.
+ * @param[in,out]           body         The resulting C3D_Body object.
+ */
+void Body_CalculateMassData(C3D_Body* body);
+
+/**
+ * @brief Synchronizes nearby C3D_Box boxes of the C3D_Body object, and updates them.
+ * @param[in,out]          body           The resulting C3D_Body object.
+ */
+void Body_SynchronizeProxies(C3D_Body* body);
 
 /**************************************************
  * Broadphase Functions (Broadphase)
@@ -1082,7 +1281,7 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase);
  * @param[in]          id                   The C3D_DynamicAABBTreeNode node object to update with the new C3D_AABB object.
  * @param[in]          aabb                 The C3D_AABB object for updating the C3D_DynamicAABBTreeNode node object with.
  */
-void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb);
+void Broadphase_Update(C3D_Broadphase* broadphase, unsigned int id, const C3D_AABB* aabb);
 
 /**
  * @brief Check for any overlapping C3D_DynamicAABBTreeNode node objects based on the nodes' C3D_AABB boundaries.
@@ -1136,21 +1335,21 @@ static inline bool TreeNode_IsLeaf(const C3D_DynamicAABBTreeNode* const node)
  * @param[in,out]     tree     The resulting C3D_DynamicAABBTree object to clear the nodes in.
  * @param[in]         index    The C3D_DynamicAABBTreeNode object's node ID to start freeing from. Subsequent nodes will be cleared away thereafter.
  */
-void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, int index);
+void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, const unsigned int index);
 
 /**
  * @brief Allocates a new node. If there are available free nodes to use, it will allocate from that list of free nodes to choose from. If there aren't any, it will allocate new ones on the memory.
  * @param[in,out]     tree      The resulting C3D_DynamicAABBTree to allocate new C3D_DynamicAABBTreeNode object nodes to.
  * @return The node index (ID) of the last allocated C3D_DynamicAABBTreeNode object.
  */
-int Tree_AllocateNode(C3D_DynamicAABBTree* tree);
+unsigned int Tree_AllocateNode(C3D_DynamicAABBTree* tree);
 
 /**
  * @brief Releases the C3D_DynamicAABBTreeNode node by clearing an occupied node of the given index.
  * @param[in,out]     tree           The resulting C3D_DynamicAABBTree object.
  * @param[in]         index          The index of the C3D_DynamicAABBTreeNode node to be cleared away.  
  */
-void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, int index);
+void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, const unsigned int index);
 
 /**
  * @brief Balances the tree so the tree contains C3D_DynamicAABBTreeNode objects where the tree does not have a height difference of more than 1. 
@@ -1164,28 +1363,28 @@ void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, int index);
  * @param[in]           indexA     The starting C3D_DynamicAABBTreeNode node, where the balancing starts from.
  * @return The C3D_DynamicAABBTreeNode parent node that is balanced from indexA. If indexA is the parent node whose children is balanced, then indexA will be returned.
  */
-int Tree_Balance(C3D_DynamicAABBTree* tree, int indexA);
+int Tree_Balance(C3D_DynamicAABBTree* tree, const unsigned int indexA);
 
 /**
  * @brief Balances all C3D_DynamicAABBTreeNode nodes in the C3D_DynamicAABBTree tree.
  * @param[in,out]       tree        The resulting C3D_DynamicAABBTree object with all balanced C3D_DynamicAABBTree nodes, starting from the index.
  * @param[in]           index       The starting C3D_DynamicAABBTreeNode node's index (ID) to begin balancing from.
  */
-void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, int index);
+void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, const unsigned int index);
 
 /**
  * @brief Inserts a new C3D_DynamicAABBTreeNode leaf node of the C3D_DynamicAABBTreeNode node index (ID). In other words, inserts a child node at the parent node index ID.
  * @param[in,out]      tree      The resulting C3D_DynamicAABBTree tree with the inserted C3D_DynamicAABBTreeNode node.
  * @param[in]          id        The C3D_DynamicAABBTreeNode node index value to insert the leaf node at, setting the given C3D_DynamicAABBTreeNode node as the parent node.
  */
-void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, int id);
+void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, const unsigned int id);
 
 /**
  * @brief Removes a C3D_DynamicAABBTreeNode leaf node of the given C3D_DynamicAABBTreeNode node index (ID). In other words, removes a child node from the parent node index ID.
  * @param[in,out]      tree      The resulting C3D_DynamicAABBTree tree with the removed C3D_DynamicAABBTreeNode node.
  * @param[in]          id        The C3D_DynamicAABBTreeNode nodex index value to remove the leaf node at, setting the appropriate parent node.
  */
-void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, int id);
+void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, const unsigned int id);
 
 /**
  * @brief Initializes the C3D_DynamicAABBTree object.
@@ -1212,7 +1411,7 @@ int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData)
  * @param[in,out]       tree      The resulting C3D_DynamicAABBTree tree object with the specified C3D_DynamicAABBTreeNode node object removed.
  * @param[in]           index     The index of the C3D_DynamicAABBTreeNode node object to be removed, including child C3D_DynamicAABBTreeNode nodes.
  */
-void Tree_Remove(C3D_DynamicAABBTree* tree, int index);
+void Tree_Remove(C3D_DynamicAABBTree* tree, const unsigned int index);
 
 /**
  * @brief Obtain the C3D_AABB object from C3D_DynamicAABBTreeNode node of index ID from C3D_DynamicAABBTree tree object.
@@ -1220,7 +1419,7 @@ void Tree_Remove(C3D_DynamicAABBTree* tree, int index);
  * @param[in]         id             The C3D_DynamicAABBTreeNode node index ID to look for in the C3D_DynamicAABBTree tree object.
  * @return The C3D_AABB object that matches the above conditions. 
  */
-C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id);
+C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, const unsigned int id);
 
 /**
  * @brief Obtains the user data from the C3D_DynamicAABBTreeNode node stored in the C3D_DynamicAABBTree tree object.
@@ -1228,7 +1427,7 @@ C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, int id);
  * @param[in]     id           The C3D_DynamicAABBTreeNode node index ID to look for.
  * @return the C3D_AABB object stored in the C3D_DynamicAABBTreeNode node of index ID in the C3D_DynamicAABBTree tree.
  */
-void* Tree_GetUserData(C3D_DynamicAABBTree* tree, int id);
+void* Tree_GetUserData(C3D_DynamicAABBTree* tree, const unsigned int id);
 
 /**
  * @brief Queries for information to retrieve from the C3D_DynamicAABBTree tree.
@@ -1236,14 +1435,14 @@ void* Tree_GetUserData(C3D_DynamicAABBTree* tree, int id);
  * @param[in]          broadphase       The C3D_Broadphase object to update.
  * @param[in]          aabb             The C3D_AABB object to validate with.
  */
-void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* broadphase, const C3D_AABB* aabb);
+void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* const broadphase, const C3D_AABB* aabb);
 
 /**
  * @brief Checks if the C3D_DynamicAABBTree tree object contains any invalid C3D_DynamicAABBTreeNode node positions, and aims to fix it.
  * @param[in,out]         tree              The resulting C3D_DynamicAABBTree tree object with the correct C3D_DynamicAABBTreeNode node positions.
  * @param[in]             index             The index of the C3D_DynamicAABBTreeNode node, for the validation to start from.
  */
-void Tree_ValidateStructure(C3D_DynamicAABBTree* tree, int index);
+void Tree_ValidateStructure(C3D_DynamicAABBTree* tree, const unsigned int index);
 
 /**
  * @brief Quickly checks if the C3D_DynamicAABBTree tree object itself is intact. Does not include validating the C3D_DynamicAABBTree tree structure in its entirety.
@@ -1257,7 +1456,7 @@ void Tree_Validate(C3D_DynamicAABBTree* tree);
  * @param[in]          id                    The C3D_DynamicAABBTreeNode node to write the new C3D_AABB object to..
  * @param[in]          aabb                  The C3D_AABB object to replace with the already existing C3D_AABB object, stored previously in the C3D_DynamicAABBTreeNode node with the given ID.
  */
-bool Tree_Update(C3D_DynamicAABBTree* tree, int id, const C3D_AABB* aabb);
+bool Tree_Update(C3D_DynamicAABBTree* tree, const unsigned int id, const C3D_AABB* aabb);
 
 
 /**************************************************
@@ -1285,7 +1484,7 @@ void Manager_AddConstraint(C3D_ContactManager* manager, C3D_Box* boxA, C3D_Box* 
  */
 static inline void Manager_FindNewConstraints(C3D_ContactManager* manager)
 {
-	Broadphase_UpdatePairs(manager->broadphase);
+	Broadphase_UpdatePairs(&manager->broadphase);
 }
 
 /**
@@ -1594,5 +1793,29 @@ C3D_ContactListener_FuncTable Listener_Default_VMT = {Listener_Init, Listener_Fr
 /**************************************************
  * Scene Functions (Scene)
  **************************************************/
+
+/**
+ * @brief Initializes the C3D_Scene scene object.
+ * @param[in,out]          scene             The resulting C3D_Scene scene object.
+ * @param[in]              deltaTime         The time step interval.
+ * @param[in]              gravity           The default gravitational force in the C3D_Scene scene.
+ * @param[in]              iterations        Physics simulation update ticks / steps per render frame. Default: 1.
+ */
+void Scene_Init(C3D_Scene* scene, const float deltaTime, const C3D_FVec gravity, const int iterations);
+
+/**
+ * @brief Releases / Shuts down / Destroys the C3D_Scene scene object.
+ * @param[in,out]         scene           The resulting C3D_Scene scene object.
+ */
+static inline void Scene_Free(C3D_Scene* scene)
+{
+	//TODO: Just implement Scene_Shutdown() here.
+}
+
+/*
+ * @brief Updates the C3D_Scene by 1 tick.
+ * @param[in,out]         scene           The resulting C3D_Scene object.
+ */
+void Scene_Step(C3D_Scene* scene);
 
 // TODO: https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.cpp

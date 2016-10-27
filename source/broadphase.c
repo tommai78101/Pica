@@ -153,7 +153,7 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
  * @param[in]          id                   The C3D_DynamicAABBTreeNode node object to update with the new C3D_AABB object.
  * @param[in]          aabb                 The C3D_AABB object for updating the C3D_DynamicAABBTreeNode node object with.
  */
-void Broadphase_Update(C3D_Broadphase* broadphase, int id, const C3D_AABB* aabb)
+void Broadphase_Update(C3D_Broadphase* broadphase, unsigned int id, const C3D_AABB* aabb)
 {
 	if (Tree_Update(broadphase->tree, id, aabb))
 		Broadphase_BufferMove(broadphase, id);
