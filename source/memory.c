@@ -10,6 +10,7 @@
  */
 void PhysicsStack_Init(C3D_PhysicsStack* out)
 {
+	out->memory = NULL;
 	out->entries = ((C3D_PhysicsStackEntry*) linearAlloc(sizeof(C3D_PhysicsStackEntry) * 64));
 	out->index = 0;
 	out->allocation = 0;
@@ -24,6 +25,8 @@ void PhysicsStack_Init(C3D_PhysicsStack* out)
  */
 void PhysicsStack_Free(C3D_PhysicsStack* in)
 {
+	if (in->memory)
+		linearFree(in->memory);
 	assert(in->index == 0);
 	assert(in->entryCount == 0);
 }
@@ -36,6 +39,7 @@ void PhysicsStack_Free(C3D_PhysicsStack* in)
  */
 void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize)
 {
+	assert(stack->index + newSize <= stack->stackSize);
 	if (stack->entryCount == stack->entryCapacity)
 	{
 		C3D_PhysicsStackEntry* oldEntries = stack->entries;
@@ -46,7 +50,6 @@ void* PhysicsStack_Allocate(C3D_PhysicsStack* stack, unsigned int newSize)
 	}
 	C3D_PhysicsStackEntry* entry = stack->entries + stack->entryCount;
 	entry->size = newSize;
-	assert(stack->index + newSize <= C3D_PHYSICSSTACK_MAX_SIZE);
 	entry->data = stack->memory + stack->index;
 	stack->index += newSize;
 	stack->allocation += newSize;
@@ -66,7 +69,7 @@ void PhysicsStack_Deallocate(C3D_PhysicsStack* stack, void* data)
 	assert(data == entry->data);
 	stack->index -= entry->size;
 	stack->allocation -= entry->size;
-	stack->entryCount--;
+	--stack->entryCount;
 }
 
 /**

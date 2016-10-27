@@ -450,6 +450,61 @@ void Tree_QueryWrapper(C3D_DynamicAABBTree* tree, C3D_SceneQueryWrapper* wrapper
 }
 
 /**
+ * @brief Queries for raycasting information to retrieve from the C3D_DynamicAABBTree tree, and place the results into the C3D_RaycastData object.
+ * @param[in,out]       tree            The C3D_DynamicAABBTree tree object to query through.
+ * @param[in]           wrapper         The C3D_SceneQueryWrapper object containing a callback acquired from inquiring for raycasting data.
+ * @param[in]           raycastData     The C3D_RaycastData object for inquiring the hit object.
+ */
+void Tree_QueryRaycast(C3D_DynamicAABBTree* tree, C3D_SceneQueryWrapper* const wrapper, C3D_RaycastData* const raycast)
+{
+	const unsigned int kStackCapacity = 256;
+	int stack[kStackCapacity];
+	int stackPointer = 1;
+	*stack = tree->root;
+	C3D_FVec point0 = raycast->rayOrigin;
+	C3D_FVec point1 = FVec3_Add(point0, FVec3_Scale(raycast->direction, raycast->endPointTime));
+	while (stackPointer)
+	{
+		assert(stackPointer < kStackCapacity);
+		unsigned int id = stack[--stackPointer];
+		if (id == TREENODE_NULL)
+			continue;
+		const C3D_DynamicAABBTreeNode* node = tree->nodes + id;
+		C3D_FVec extent = FVec3_Subtract(node->aabb.max, node->aabb.min);
+		C3D_FVec distance = FVec3_Subtract(point1, point0);
+		C3D_FVec magnitude = FVec3_Add(point0, FVec3_Subtract(point1, FVec3_Subtract(node->aabb.min, node->aabb.max)));
+		float absoluteDistX = fabsf(distance.x);
+		if (fabsf(magnitude.x) > extent.x + absoluteDistX)
+			continue;
+		float absoluteDistY = fabsf(distance.y);
+		if (fabsf(magnitude.y) > extent.y + absoluteDistY)
+			continue;
+		float absoluteDistZ = fabsf(distance.z);
+		if (fabsf(magnitude.z) > extent.z + absoluteDistZ)
+			continue;
+		absoluteDistX += FLT_EPSILON;
+		absoluteDistY += FLT_EPSILON;
+		absoluteDistZ += FLT_EPSILON;
+		if (fabsf(magnitude.y * distance.z - magnitude.z * distance.y) > extent.y * absoluteDistZ + extent.z * absoluteDistY)
+			continue;
+		if (fabsf(magnitude.z * distance.x - magnitude.x * distance.z) > extent.x * absoluteDistZ + extent.z * absoluteDistX)
+			continue;
+		if (fabsf(magnitude.x * distance.y - magnitude.y * distance.x) > extent.x * absoluteDistY + extent.y * absoluteDistX)
+			continue;
+		if (TreeNode_IsLeaf(node))
+		{
+			if (!QueryWrapper_TreeCallback(wrapper, id))
+				return;
+		}
+		else 
+		{
+			stack[stackPointer++] = node->left;
+			stack[stackPointer++] = node->right;
+		}
+	}
+}
+
+/**
  * @brief Checks if the C3D_DynamicAABBTree tree object contains any invalid C3D_DynamicAABBTreeNode node positions, and aims to fix it.
  * @param[in,out]         tree              The resulting C3D_DynamicAABBTree tree object with the correct C3D_DynamicAABBTreeNode node positions.
  * @param[in]             index             The index of the C3D_DynamicAABBTreeNode node, for the validation to start from.

@@ -17,7 +17,6 @@
  **************************************************/
 
 //May need to change the stack and heap size to different values.
-#define C3D_PHYSICSSTACK_MAX_SIZE 1024*20   //20KB
 #define C3D_PHYSICSHEAP_MAX_SIZE 1024*20    //20KB
 #define C3D_PHYSICSHEAP_INIT_SIZE 1024      //1KB
 #define MACRO_POINTER_ADD(POINTER,BYTES) ((__typeof__(POINTER))(((u8 *)POINTER)+(BYTES)))
@@ -70,7 +69,8 @@ typedef enum C3D_BodyFlag
 typedef enum C3D_SceneQueryWrapperType 
 {
 	WrapperType_AABB,
-	WrapperType_Point
+	WrapperType_Point,
+	WrapperType_Raycast
 } SceneQueryWrapperType;
 
 /**************************************************
@@ -85,7 +85,8 @@ typedef struct C3D_PhysicsStackEntry
 
 typedef struct C3D_PhysicsStack 
 {
-	//TODO: u8 memory[C3D_PHYSICSSTACK_MAX_SIZE];
+	//TODO: Test this.
+	//u8 memory[C3D_PHYSICSSTACK_MAX_SIZE];
 	u8* memory;
 	unsigned int index;
 	unsigned int allocation;
@@ -437,8 +438,9 @@ typedef struct C3D_SceneQueryWrapper
 	C3D_AABB aabb;
 	C3D_FVec point;
 	enum C3D_SceneQueryWrapperType wrapperType;
-	struct C3D_QueryCallback* callback;
 	const C3D_Broadphase* broadphase;
+	struct C3D_QueryCallback* callback;
+	struct C3D_RaycastData* raycastData;
 } C3D_SceneQueryWrapper;
 
 typedef struct C3D_Scene 
@@ -955,7 +957,7 @@ static inline void Box_SetSensorFlag(C3D_Box* const box, bool flag)
  * @note RandyGaul: The entire function performs box to ray and finds the hit point. Using the transpose lets one solve ray to AABB and still get the 
  *       correct results. Ray to AABB is easier than ray to OBB.
  */
-bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* const raycastData);
+bool Box_Raycast(C3D_Box* box, C3D_RaycastData* const raycastData, const C3D_Transform* transform);
 
 /**
  * @brief Using the given C3D_Box object data, create a C3D_AABB object that encapsulate the C3D_Box data.
@@ -1476,6 +1478,14 @@ void Tree_Query(C3D_DynamicAABBTree* tree, C3D_Broadphase* const broadphase, con
 void Tree_QueryWrapper(C3D_DynamicAABBTree* tree, C3D_SceneQueryWrapper* const wrapper, const C3D_AABB* aabb);
 
 /**
+ * @brief Queries for raycasting information to retrieve from the C3D_DynamicAABBTree tree, and place the results into the C3D_RaycastData object.
+ * @param[in,out]       tree            The C3D_DynamicAABBTree tree object to query through.
+ * @param[in]           wrapper         The C3D_SceneQueryWrapper object containing a callback acquired from inquiring for raycasting data.
+ * @param[in]           raycastData     The C3D_RaycastData object for inquiring the hit object.
+ */
+void Tree_QueryRaycast(C3D_DynamicAABBTree* tree, C3D_SceneQueryWrapper* const wrapper, C3D_RaycastData* const raycast);
+
+/**
  * @brief Checks if the C3D_DynamicAABBTree tree object contains any invalid C3D_DynamicAABBTreeNode node positions, and aims to fix it.
  * @param[in,out]         tree              The resulting C3D_DynamicAABBTree tree object with the correct C3D_DynamicAABBTreeNode node positions.
  * @param[in]             index             The index of the C3D_DynamicAABBTreeNode node, for the validation to start from.
@@ -1965,4 +1975,19 @@ void Scene_QueryAABB(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_AA
  */
 void Scene_QueryPoint(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_FVec point);
 
-// TODO: https://github.com/RandyGaul/qu3e/blob/master/src/scene/q3Scene.cpp
+/**
+ * @brief Create a C3D_RaycastData raycasting data in the C3D_Scene object.
+ * @param[in,out]            scene           The resulting C3D_Scene object.
+ * @param[in]                callback        The C3D_QueryCallback structure for handling the callback.
+ * @param[in]                raycast      The C3D_RaycastData output, logging the results of the raycasting.
+ */
+void Scene_Raycast(C3D_Scene* scene, C3D_RaycastData* const raycast, C3D_QueryCallback* const callback)
+{
+	C3D_SceneQueryWrapper wrapper;
+	wrapper.wrapperType = WrapperType_Raycast;
+	wrapper.raycastData = raycast;
+	wrapper.broadphase = &scene->contactManager.broadphase;
+	wrapper.callback = callback;
+	Tree_QueryRaycast(scene->contactManager.broadphase.tree, &wrapper, raycast);
+}
+

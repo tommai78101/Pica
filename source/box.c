@@ -8,8 +8,12 @@
  * @brief Cast a ray
  * @note RandyGaul: The entire function performs box to ray and finds the hit point. Using the transpose lets one solve ray to AABB and still get the 
  *       correct results. Ray to AABB is easier than ray to OBB.
+ * @param[in,out]             box             The resulting C3D_Box object.
+ * @param[in,out]             raycastData     The resulting C3D_RaycastData object.
+ * @param[in]                 transform       A C3D_Transform used to convert local transform to world transform.
+ * @return True if the raycast successfully hits the C3D_Box object. False, if otherwise.
  */
-bool Box_Raycast(C3D_Box* box, const C3D_Transform* transform, C3D_RaycastData* const raycastData)
+bool Box_Raycast(C3D_Box* box, C3D_RaycastData* const raycastData, const C3D_Transform* transform)
 {
 	C3D_Transform worldTransform;
 	Transform_Multiply(&worldTransform, transform, &box->localTransform);

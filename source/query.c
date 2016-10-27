@@ -44,6 +44,13 @@ bool QueryWrapper_TreeCallback(C3D_SceneQueryWrapper* wrapper, unsigned int id)
 				(wrapper->callback ? wrapper->callback->vmt->ReportShape(wrapper->callback, box) : false);
 			return true;
 		}
+		case WrapperType_Raycast:
+		{
+			C3D_Box* box = (C3D_Box*) Tree_GetUserData(wrapper->broadphase->tree, id);
+			if (Box_Raycast(box, wrapper->raycastData, &box->body->transform))
+				return (wrapper->callback ? wrapper->callback->vmt->ReportShape(wrapper->callback, box) : false);
+			return true;
+		}
 		default:
 			break;
 	}
