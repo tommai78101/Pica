@@ -1507,9 +1507,10 @@ void Manager_RemoveBodyFromBroadphase(C3D_ContactManager* manager, C3D_Body* bod
 void Manager_CollisionResponse(C3D_ContactManager* manager);
 
 /**
- * @brief Render the C3D_ContactConstraint objects.
+ * @brief Renders the C3D_ContactConstraint objects.
  * @param[in,out]      manager        The resulting C3D_ContactManager manager object.
  */
+//TODO: Work on the rendering stuffs.
 void Manager_RenderConstraints(C3D_ContactManager* manager);
 
 /**************************************************
