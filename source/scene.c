@@ -198,9 +198,19 @@ void Scene_SetAllowSleep(C3D_Scene* scene, const bool sleepFlag)
 	}
 }
 
+/**
+ * @brief Renders the C3D_Scene object.
+ * @param[in]        scene         Uses the C3D_Scene object to render.
+ */
 void Scene_Render(C3D_Scene* scene)
 {
-	//TODO: Render the scene
+	C3D_Body* body = scene->bodyList;
+	while (body)
+	{
+		Body_Render(body);
+		body = body->next;
+	}
+	Manager_RenderConstraints(&scene->contactManager);
 }
 
 /**
@@ -238,4 +248,20 @@ void Scene_QueryPoint(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_F
 	aabb.min = FVec3_Subtract(point, vertex);
 	aabb.max = FVec3_Add(point, vertex);
 	Tree_QueryWrapper(scene->contactManager.broadphase.tree, &wrapper, &aabb);
+}
+
+/**
+ * @brief Create a C3D_RaycastData raycasting data in the C3D_Scene object.
+ * @param[in,out]            scene           The resulting C3D_Scene object.
+ * @param[in]                callback        The C3D_QueryCallback structure for handling the callback.
+ * @param[in]                raycast      The C3D_RaycastData output, logging the results of the raycasting.
+ */
+void Scene_Raycast(C3D_Scene* scene, C3D_RaycastData* const raycast, C3D_QueryCallback* const callback)
+{
+	C3D_SceneQueryWrapper wrapper;
+	wrapper.wrapperType = WrapperType_Raycast;
+	wrapper.raycastData = raycast;
+	wrapper.broadphase = &scene->contactManager.broadphase;
+	wrapper.callback = callback;
+	Tree_QueryRaycast(scene->contactManager.broadphase.tree, &wrapper, raycast);
 }
