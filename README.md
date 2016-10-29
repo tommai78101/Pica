@@ -1,8 +1,6 @@
 # Pica
 
-**(Under Construction / Project Not Complete)**
-
-This project is a physics library extension for citro3D, providing a lightweight alternative for physics-based simulation. Currently undergoing construction. Readme.md will be updated when necessary. 
+This project is a physics library extension for citro3D, providing a lightweight alternative for physics-based simulation. Currently undergoing bug-bashing session to fix up issues. 
 
 The physics engine is a port from [qu3e](https://github.com/RandyGaul/qu3e), written by Randy Gual. Permission was granted for porting the code over to the Nintendo 3DS family systems.
 
@@ -21,7 +19,7 @@ Two reasons:
 
 # Setup
 
-Pica (and citro3d altogether) can be built and installed using the following command:
+Pica (and citro3d altogether) can be built and installed using the following command (should not expect any issues here):
 
     make install
 
