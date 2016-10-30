@@ -8,12 +8,6 @@ endif
 
 include $(DEVKITARM)/3ds_rules
 
-export CITRO3D_MAJOR	:= 1
-export CITRO3D_MINOR	:= 1
-export CITRO3D_PATCH	:= 0
-
-VERSION	:=	$(CITRO3D_MAJOR).$(CITRO3D_MINOR).$(CITRO3D_PATCH)
-
 #---------------------------------------------------------------------------------
 # TARGET is the name of the output
 # BUILD is the directory where object files & intermediate files will be placed
@@ -21,36 +15,31 @@ VERSION	:=	$(CITRO3D_MAJOR).$(CITRO3D_MINOR).$(CITRO3D_PATCH)
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
 #---------------------------------------------------------------------------------
-TARGET		:=	citro3d
+TARGET		:=	$(shell basename $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	citro3d/source \
-                source                
+SOURCES		:=	source
 DATA		:=	data
-INCLUDES	:=	citro3d/include \
-                citro3d/include/c3d \
-                include
-	
+INCLUDES	:=	include
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
-CFLAGS	:=	-g -Wall -Werror -O2 -mword-relocations \
+CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			-fomit-frame-pointer -ffunction-sections \
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
-
-ASFLAGS	:=	-g $(ARCH) $(DEFINES)
+ASFLAGS	:=	-g $(ARCH)
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(CTRULIB)
+LIBDIRS	:=	$(CTRULIB)
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
@@ -97,6 +86,13 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 #---------------------------------------------------------------------------------
 all: $(BUILD)
 
+lib:
+	@[ -d $@ ] || mkdir -p $@
+	
+$(BUILD): lib
+	@[ -d $@ ] || mkdir -p $@
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+
 dist-bin: all
 	@tar --exclude=*~ -cjf citro3d-$(VERSION).tar.bz2 include lib
 
@@ -108,13 +104,6 @@ dist: dist-src dist-bin
 install: dist-bin
 	mkdir -p $(DEVKITPRO)/libctru
 	bzip2 -cd citro3d-$(VERSION).tar.bz2 | tar -xf - -C $(DEVKITPRO)/libctru
-
-lib:
-	@[ -d $@ ] || mkdir -p $@
-
-$(BUILD): lib
-	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
@@ -136,6 +125,7 @@ $(OUTPUT)	:	$(OFILES)
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@$(bin2o)
+
 
 -include $(DEPENDS)
 
