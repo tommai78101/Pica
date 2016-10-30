@@ -1,4 +1,4 @@
-# Pica
+# Pica (3D Physics Engine)
 
 This project is a physics library extension for citro3D, providing a lightweight alternative for physics-based simulation. Currently undergoing bug-bashing session to fix up issues. 
 
@@ -44,4 +44,4 @@ Pica (and citro3d altogether) can be built and installed using the following com
 
 # Additional Credits
 
-Thanks to LinkBlaBla for the project name, Pica.
+Thanks to LinkBlaBla for the project name, Pica. It is inspired by the graphics chipset on the Nintendo 3DS, named PICA200.
