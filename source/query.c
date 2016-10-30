@@ -1,5 +1,24 @@
 #include "physics.h"
 
+/*
+ * QUERY.C
+ */
+
+/**
+ * @brief This is where you write your own implementations in the QueryCallback_Init() function. This function's purpose is to initialize the C3D_QueryCallback struct object.
+ * @note By default, the default virtual method table (v-table) has been given. If you wish to use your own methods and implementations, you need to use the struct object,
+ *       C3D_QueryCallback_FuncTable, to store your function pointers, then pass it to the C3D_QueryCallback object's v-table.
+ *       For all derived query callback structs, it is up to the developer(s) to provide their own virtual method tables (VMTs).
+ *       They must use the following initialization format given below. After that, it is assigned to the derived query callback struct's "vmt" variable.
+ *       
+ *       	Format: C3D_QueryCallback_FuncTable QueryCallback_Default_VMT = {QueryCallback_Free, QueryCallback_ReportShape};
+ *       
+ */
+void QueryCallback_Init(C3D_QueryCallback* queryCallback, C3D_QueryCallback_FuncTable* const vmt)
+{
+	queryCallback->vmt = vmt;
+}
+
 /**
  * @brief Releases / Destroys the C3D_QueryCallback object. By default, it does nothing. Must manually handle resources.
  * @param[in,out]          queryCallback               Expect to pass in a pointer to the C3D_QueryCallback object.

@@ -162,13 +162,13 @@ void Body_SetAllFlags(C3D_Body* body, C3D_BodyType type, bool sleep, bool awake,
  * @param[in]    other      The second C3D_Body to check.
  * @return True if both C3D_Body objects can collide. False, if otherwise.
  */
-bool Body_CanCollide(C3D_Body* this, const C3D_Body* other)
+bool Body_CanCollide(C3D_Body* body, const C3D_Body* other)
 {
-	if (this == other)
+	if (body == other)
 		return false;
-	if (!(this->flags & BodyFlag_Dynamic) && !(other->flags & BodyFlag_Dynamic))
+	if (!(body->flags & BodyFlag_Dynamic) && !(other->flags & BodyFlag_Dynamic))
 		return false;
-	if (!(this->collisionLayers & other->collisionLayers))
+	if (!(body->collisionLayers & other->collisionLayers))
 		return false;
 	return true;
 }

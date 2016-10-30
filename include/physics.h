@@ -1,8 +1,8 @@
 #pragma once
 #include "3ds.h"
 #include "citro3d.h"
-#include "types.h"
-#include "maths.h"
+#include "c3d/maths.h"
+
 #include <float.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -480,7 +480,6 @@ typedef struct C3D_Scene
  */ 
 typedef struct C3D_ContactListener_FuncTable 
 {
-	void (*Init)(struct C3D_ContactListener*);
 	void (*Free)(struct C3D_ContactListener*);
 	void (*BeginContact)(struct C3D_ContactListener*, const C3D_ContactConstraint* constraint);
 	void (*EndContact)(struct C3D_ContactListener*, const C3D_ContactConstraint* constraint);
@@ -1102,7 +1101,7 @@ void Body_RemoveAllBoxes(C3D_Body* body);
  * @param[in]    other      The second C3D_Body to check.
  * @return True if both C3D_Body objects can collide. False, if otherwise.
  */
-bool Body_CanCollide(C3D_Body* this, const C3D_Body* other);
+bool Body_CanCollide(C3D_Body* body, const C3D_Body* other);
 
 /**
  * @brief Checks if C3D_Body is in Awake state.
@@ -1821,16 +1820,23 @@ void Island_Solve(C3D_Island* island);
 
 /**
  * @brief This is where you write your very own Listener_Init() function. This function's purpose is to initialize your C3D_ContactListener object.
+ * @note By default, the default virtual method table (v-table) has been given. If you wish to use your own methods and implementations, you need to use the struct object,
+ *       C3D_ContactListener_FuncTable, to store your function pointers, then pass it to the C3D_ContactListener object's v-table.
+ *       For all derived contact listener structs, it is up to the developer(s) to provide their own virtual method tables (VMTs).
+ *       They must use the following initialization format given below. After that, it is assigned to the derived contact listener struct's "vmt" variable.
+ *       
+ *       	Format: C3D_ContactListener_FuncTable Listener_Default_VMT = {Listener_Free, Listener_BeginContact, Listener_EndContact};
+ *        
  * @param[in,out]        this            Expect to pass in a pointer to the C3D_ContactListener object, and fill in or initialize the data structure. 
  */
-void Listener_Init(C3D_ContactListener* this);
+void Listener_Init(C3D_ContactListener* listener, C3D_ContactListener_FuncTable* const vmt);
 
 /**
  * @brief This is where you write your very own Listener_Free() function. This function's purpose is to deallocate/release/free up resources from your C3D_ContactListener object.
  * @param[in,out]        this            Expect to pass in a pointer to the C3D_ContactListener object, and find a way to free up the resources, or check to see if there are no 
  *                                       existing resources left.
  */
-void Listener_Free(C3D_ContactListener* this);
+void Listener_Free(C3D_ContactListener* listener);
 
 /**
  * @brief This is where you write your very own Listener_BeginContact() function. This function's purpose is to initiate handling events of which a C3D_ContactConstraint object is to be 
@@ -1838,7 +1844,7 @@ void Listener_Free(C3D_ContactListener* this);
  * @param[in,out]        this            Expect a pointer to a C3D_ContactListener object where you update your data that depends on this event.
  * @param[in]            constraint      A C3D_ContactConstraint object that, when the event has been listened to, gives you a snapshot of the contact constraint you are listening to.
  */
-void Listener_BeginContact(C3D_ContactListener* this, const C3D_ContactConstraint* constraint);
+void Listener_BeginContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint);
 
 /**
  * @brief This is where you write your very own Listener_EndContact() function. This function's purpose is to finish handling events of which a C3D_ContactConstraint object is no longer to be
@@ -1846,13 +1852,7 @@ void Listener_BeginContact(C3D_ContactListener* this, const C3D_ContactConstrain
  * @param[in,out]        this            Expect a pointer to a C3D_ContactListener object where you update your data that depends on this event.
  * @param[in]            constraint      A C3D_ContactConstraint object that, when the event has finished, gives you a snapshot of the contact constraint you were listening to. 
  */
-void Listener_EndContact(C3D_ContactListener* this, const C3D_ContactConstraint* constraint);
-
-/**
- * @note For all derived contact listener structs, it is up to the developer(s) to provide their own virtual method tables (VMTs).
- *       They must use the following initialization format given below. After that, it is assigned to the derived contact listener struct's "vmt" variable. 
- */
-C3D_ContactListener_FuncTable Listener_Default_VMT = {Listener_Init, Listener_Free, Listener_BeginContact, Listener_EndContact};
+void Listener_EndContact(C3D_ContactListener* listener, const C3D_ContactConstraint* constraint);
 
 /**************************************************
  * Query Callbacks Functions / Scene Query Wrapper Functions (QueryCallback)
@@ -1867,6 +1867,18 @@ C3D_ContactListener_FuncTable Listener_Default_VMT = {Listener_Init, Listener_Fr
  */
 
 /**
+ * @brief This is where you write your own implementations in the QueryCallback_Init() function. This function's purpose is to initialize the C3D_QueryCallback struct object.
+ * @note By default, the default virtual method table (v-table) has been given. If you wish to use your own methods and implementations, you need to use the struct object,
+ *       C3D_QueryCallback_FuncTable, to store your function pointers, then pass it to the C3D_QueryCallback object's v-table.
+ *       For all derived query callback structs, it is up to the developer(s) to provide their own virtual method tables (VMTs).
+ *       They must use the following initialization format given below. After that, it is assigned to the derived query callback struct's "vmt" variable.
+ *       
+ *       	Format: C3D_QueryCallback_FuncTable QueryCallback_Default_VMT = {QueryCallback_Free, QueryCallback_ReportShape};
+ *       
+ */
+void QueryCallback_Init(C3D_QueryCallback* queryCallback, C3D_QueryCallback_FuncTable* const vmt);
+
+/**
  * @brief Releases / Destroys the C3D_QueryCallback object. By default, it does nothing. Must manually handle resources.
  * @param[in,out]          queryCallback               Expect to pass in a pointer to the C3D_QueryCallback object.
  */
@@ -1878,8 +1890,6 @@ void QueryCallback_Free(C3D_QueryCallback* queryCallback);
  * @param[in]              box                The C3D_Box object to report its shape with.
  */
 bool QueryCallback_ReportShape(C3D_QueryCallback* queryCallback, C3D_Box* box);
-
-C3D_QueryCallback_FuncTable QueryCallback_Default_VMT = {QueryCallback_Free, QueryCallback_ReportShape};
 
 /**************************************************
  * Scene Query Wrapper Functions (QueryWrapper)
