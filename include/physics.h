@@ -36,7 +36,7 @@ static const int TREENODE_NULL = -1;
 /**
  * @brief This is used for drawing vertices by the indices.
  */
-const int kBoxIndices[ 36 ] = {
+static const int kBoxIndices[ 36 ] = {
 	0, 6, 4,
 	0, 2, 6,
 	0, 3, 2,
