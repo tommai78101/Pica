@@ -916,7 +916,7 @@ static inline C3D_FVec Transform_MultiplyTransformFVec(const C3D_Transform* tran
 /**
  * @brief Initializes the C3D_BoxParameters box properties. You must manually set the values for restitution, friction, density, and sensor flag.
  * @param[in,out]        parameters          The resulting C3D_BoxParameters box property.
- * @param[in]            transform           The local C3D_Transform transform.
+ * @param[in]            transform           The local C3D_Transform transform. It is not a pointer.
  * @param[in]            extents             The full extent of a C3D_Box box. Each element of the extents will be halved.
  */
 void BoxParameters_Init(C3D_BoxParameters* parameters, const C3D_Transform transform, const C3D_FVec extents);
