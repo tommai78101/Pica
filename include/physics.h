@@ -1,7 +1,6 @@
 #pragma once
-#include "3ds.h"
-#include "citro3d.h"
-#include "c3d/maths.h"
+#include <3ds.h>
+#include <citro3d.h>
 
 #include <float.h>
 #include <stdbool.h>
