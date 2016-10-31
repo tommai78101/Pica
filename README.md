@@ -23,6 +23,10 @@ Pica (and citro3d altogether) can be built and installed using the following com
 
     make install
 
+# Demonstration Code
+
+Please check the `/demo` directory or in the repository above. Currently under construction.
+
 # License
 
   This software is provided 'as-is', without any express or implied
