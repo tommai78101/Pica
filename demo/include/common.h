@@ -7,6 +7,7 @@
 #	include <physics.h>
 #	include <assert.h>
 #	include <stdlib.h>
+#	include <stdio.h>
 #	include "demo.h"
 
 static inline float RandRange(float l, float h)

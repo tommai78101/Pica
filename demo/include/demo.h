@@ -23,7 +23,6 @@ typedef enum DemoType
 typedef struct Demo 
 {
 	int id;
-	float accumulatedTime;
 	DemoType type;
 	struct Demo_FuncTable* vmt;
 } Demo;
@@ -32,20 +31,24 @@ typedef struct Demo_FuncTable
 {
 	void (*Init)(struct Demo*);
 	void (*Update)(struct Demo*);
+	void (*Render)(struct Demo*);
 	void (*Shutdown)(struct Demo*);
 } Demo_FuncTable;
 
+extern bool paused;
 extern bool singleStep;
 extern int demoCount;
-extern int currentDemo;
-extern float deltaTime;
-extern struct C3D_Scene scene;
+extern int currentDemoIterator;
+extern C3D_Scene scene;
 
-void Demo_Create(Demo* d, int id);
-void Demo_Destroy(Demo* d);
+void Demos_Init(Demo* d, int id);
+void Demos_Shutdown(Demo* d);
+void Demos_Update(Demo* d);
+void Demos_Render(Demo* d);
 
 void Demo_DropBox_Init(Demo* d);
 void Demo_DropBox_Update(Demo* d);
+void Demo_DropBox_Render(Demo* d);
 void Demo_DropBox_Shutdown(Demo* d);
 
 

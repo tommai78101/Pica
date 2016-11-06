@@ -1,3 +1,3 @@
-# Pica Demo
+# template
 
-Currently under construction.
+This is a template for starting new 3DS libctru projects.
