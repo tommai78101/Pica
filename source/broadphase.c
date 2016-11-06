@@ -11,6 +11,7 @@
  */
 void Broadphase_Init(C3D_Broadphase* out, C3D_ContactManager* const contactManager)
 {
+	Tree_Init(&out->tree);
 	out->contactManager = contactManager;
 	out->pairCount = 0;
 	out->pairCapacity = 64;
@@ -28,6 +29,7 @@ void Broadphase_Free(C3D_Broadphase* out)
 {
 	linearFree(out->moveBuffer);
 	linearFree(out->pairBuffer);
+	Tree_Free(&out->tree);
 }
 
 /**
@@ -56,7 +58,7 @@ void Broadphase_BufferMove(C3D_Broadphase* broadphase, int index)
  */
 void Broadphase_InsertBox(C3D_Broadphase* broadphase, C3D_Box* box, C3D_AABB* const aabb)
 {
-	int id = Tree_Insert(broadphase->tree, aabb, box);
+	int id = Tree_Insert(&broadphase->tree, aabb, box);
 	box->broadPhaseIndex = id;
 	Broadphase_BufferMove(broadphase, id);
 }
@@ -68,7 +70,7 @@ void Broadphase_InsertBox(C3D_Broadphase* broadphase, C3D_Box* box, C3D_AABB* co
  */
 void Broadphase_RemoveBox(C3D_Broadphase* broadphase, const C3D_Box* box)
 {
-	Tree_Remove(broadphase->tree, box->broadPhaseIndex);
+	Tree_Remove(&broadphase->tree, box->broadPhaseIndex);
 }
 
 /**
@@ -118,8 +120,8 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
 	for (int i = 0; i < broadphase->moveCount; i++)
 	{
 		broadphase->currentIndex = broadphase->moveBuffer[i];
-		C3D_AABB aabb = Tree_GetFatAABB(broadphase->tree, broadphase->currentIndex);
-		Tree_Query(broadphase->tree, broadphase, &aabb);
+		C3D_AABB aabb = Tree_GetFatAABB(&broadphase->tree, broadphase->currentIndex);
+		Tree_Query(&broadphase->tree, broadphase, &aabb);
 	}
 	broadphase->moveCount = 0;
 	
@@ -131,8 +133,8 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
 		while (i < broadphase->pairCount)
 		{
 			C3D_ContactPair* pair = broadphase->pairBuffer + i;
-			C3D_Box* boxA = (C3D_Box*) Tree_GetUserData(broadphase->tree, pair->A);
-			C3D_Box* boxB = (C3D_Box*) Tree_GetUserData(broadphase->tree, pair->B);
+			C3D_Box* boxA = (C3D_Box*) Tree_GetUserData(&broadphase->tree, pair->A);
+			C3D_Box* boxB = (C3D_Box*) Tree_GetUserData(&broadphase->tree, pair->B);
 			Manager_AddConstraint(broadphase->contactManager, boxA, boxB);
 			i++;
 			while (i < broadphase->pairCount)
@@ -144,7 +146,7 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
 			}
 		}
 	}
-	Tree_Validate(broadphase->tree);
+	Tree_Validate(&broadphase->tree);
 }
 
 /**
@@ -155,7 +157,7 @@ void Broadphase_UpdatePairs(C3D_Broadphase* broadphase)
  */
 void Broadphase_Update(C3D_Broadphase* broadphase, unsigned int id, const C3D_AABB* aabb)
 {
-	if (Tree_Update(broadphase->tree, id, aabb))
+	if (Tree_Update(&broadphase->tree, id, aabb))
 		Broadphase_BufferMove(broadphase, id);
 }
 
@@ -168,8 +170,8 @@ void Broadphase_Update(C3D_Broadphase* broadphase, unsigned int id, const C3D_AA
  */
 bool Broadphase_CanOverlap(C3D_Broadphase* broadphase, int A, int B)
 {
-	C3D_AABB fatA = Tree_GetFatAABB(broadphase->tree, A);
-	C3D_AABB fatB = Tree_GetFatAABB(broadphase->tree, A);
+	C3D_AABB fatA = Tree_GetFatAABB(&broadphase->tree, A);
+	C3D_AABB fatB = Tree_GetFatAABB(&broadphase->tree, A);
 	return AABB_CollidesAABB(&fatA, &fatB);
 }
 

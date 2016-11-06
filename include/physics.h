@@ -164,23 +164,6 @@ typedef struct C3D_AABB
 	C3D_FVec max;
 } C3D_AABB;
 
-typedef struct C3D_DynamicAABBTreeNode 
-{
-	union 
-	{
-		int parent;
-		int next;
-	};
-	struct 
-	{
-		int left;
-		int right;
-	};
-	int height;
-	void* userData;
-	C3D_AABB aabb;
-} C3D_DynamicAABBTreeNode;
-
 typedef struct C3D_BoxParameters 
 {
 	bool sensor;
@@ -188,7 +171,7 @@ typedef struct C3D_BoxParameters
 	float restitution;
 	float density;
 	C3D_FVec extent;
-	C3D_Transform transform;
+	struct C3D_Transform transform;
 } C3D_BoxParameters;
 
 /**
@@ -402,6 +385,23 @@ typedef struct C3D_Body
 	struct C3D_ContactEdge* contactList;
 } C3D_Body;
 
+typedef struct C3D_DynamicAABBTreeNode 
+{
+	union 
+	{
+		int parent;
+		int next;
+	};
+	struct 
+	{
+		int left;
+		int right;
+	};
+	int height;
+	void* userData;
+	struct C3D_AABB aabb;
+} C3D_DynamicAABBTreeNode;
+
 typedef struct C3D_DynamicAABBTree 
 {
 	int root;
@@ -419,7 +419,7 @@ typedef struct C3D_Broadphase
 	unsigned int moveCount;
 	unsigned int moveCapacity;
 	unsigned int currentIndex;
-	struct C3D_DynamicAABBTree* tree;
+	struct C3D_DynamicAABBTree tree;
 	struct C3D_ContactManager* contactManager;
 	struct C3D_ContactPair* pairBuffer;
 } C3D_Broadphase;
@@ -453,7 +453,7 @@ typedef struct C3D_SceneQueryWrapper
 	C3D_AABB aabb;
 	C3D_FVec point;
 	enum C3D_SceneQueryWrapperType wrapperType;
-	const C3D_Broadphase* broadphase;
+	C3D_Broadphase* broadphase;
 	struct C3D_QueryCallback* callback;
 	struct C3D_RaycastData* raycastData;
 } C3D_SceneQueryWrapper;
@@ -1058,7 +1058,7 @@ void Body_Init(C3D_Body* body, C3D_Scene* scene);
  * @param[in]         scene          The C3D_Scene scene object.
  * @param[in]         parameter      The C3D_BodyParameters struct to initialize the C3D_Body object with.
  */
-void Body_InitWithParameters(C3D_Body* body, C3D_Scene* const scene, const C3D_BodyParameters* parameters);
+void Body_InitWithParameters(C3D_Body* body, C3D_Scene* const scene, C3D_BodyParameters const* parameters);
 
 /**
  * @brief Helper function to set C3D_Body object flags. Note that all of the flags will be cleared before setting the properties.
@@ -1377,21 +1377,21 @@ static inline bool TreeNode_IsLeaf(const C3D_DynamicAABBTreeNode* const node)
  * @param[in,out]     tree     The resulting C3D_DynamicAABBTree object to clear the nodes in.
  * @param[in]         index    The C3D_DynamicAABBTreeNode object's node ID to start freeing from. Subsequent nodes will be cleared away thereafter.
  */
-void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, const unsigned int index);
+void Tree_AddToFreeList(C3D_DynamicAABBTree* tree, const int index);
 
 /**
  * @brief Allocates a new node. If there are available free nodes to use, it will allocate from that list of free nodes to choose from. If there aren't any, it will allocate new ones on the memory.
  * @param[in,out]     tree      The resulting C3D_DynamicAABBTree to allocate new C3D_DynamicAABBTreeNode object nodes to.
  * @return The node index (ID) of the last allocated C3D_DynamicAABBTreeNode object.
  */
-unsigned int Tree_AllocateNode(C3D_DynamicAABBTree* tree);
+int Tree_AllocateNode(C3D_DynamicAABBTree* tree);
 
 /**
  * @brief Releases the C3D_DynamicAABBTreeNode node by clearing an occupied node of the given index.
  * @param[in,out]     tree           The resulting C3D_DynamicAABBTree object.
  * @param[in]         index          The index of the C3D_DynamicAABBTreeNode node to be cleared away.  
  */
-void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, const unsigned int index);
+void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, const int index);
 
 /**
  * @brief Balances the tree so the tree contains C3D_DynamicAABBTreeNode objects where the tree does not have a height difference of more than 1. 
@@ -1405,28 +1405,28 @@ void Tree_DeallocateNode(C3D_DynamicAABBTree* tree, const unsigned int index);
  * @param[in]           indexA     The starting C3D_DynamicAABBTreeNode node, where the balancing starts from.
  * @return The C3D_DynamicAABBTreeNode parent node that is balanced from indexA. If indexA is the parent node whose children is balanced, then indexA will be returned.
  */
-int Tree_Balance(C3D_DynamicAABBTree* tree, const unsigned int indexA);
+int Tree_Balance(C3D_DynamicAABBTree* tree, const int indexA);
 
 /**
  * @brief Balances all C3D_DynamicAABBTreeNode nodes in the C3D_DynamicAABBTree tree.
  * @param[in,out]       tree        The resulting C3D_DynamicAABBTree object with all balanced C3D_DynamicAABBTree nodes, starting from the index.
  * @param[in]           index       The starting C3D_DynamicAABBTreeNode node's index (ID) to begin balancing from.
  */
-void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, const unsigned int index);
+void Tree_SyncHierarchy(C3D_DynamicAABBTree* tree, const int index);
 
 /**
  * @brief Inserts a new C3D_DynamicAABBTreeNode leaf node of the C3D_DynamicAABBTreeNode node index (ID). In other words, inserts a child node at the parent node index ID.
  * @param[in,out]      tree      The resulting C3D_DynamicAABBTree tree with the inserted C3D_DynamicAABBTreeNode node.
  * @param[in]          id        The C3D_DynamicAABBTreeNode node index value to insert the leaf node at, setting the given C3D_DynamicAABBTreeNode node as the parent node.
  */
-void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, const unsigned int id);
+void Tree_InsertLeaf(C3D_DynamicAABBTree* tree, const int id);
 
 /**
  * @brief Removes a C3D_DynamicAABBTreeNode leaf node of the given C3D_DynamicAABBTreeNode node index (ID). In other words, removes a child node from the parent node index ID.
  * @param[in,out]      tree      The resulting C3D_DynamicAABBTree tree with the removed C3D_DynamicAABBTreeNode node.
  * @param[in]          id        The C3D_DynamicAABBTreeNode nodex index value to remove the leaf node at, setting the appropriate parent node.
  */
-void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, const unsigned int id);
+void Tree_RemoveLeaf(C3D_DynamicAABBTree* tree, const int id);
 
 /**
  * @brief Initializes the C3D_DynamicAABBTree object.
@@ -1453,7 +1453,7 @@ int Tree_Insert(C3D_DynamicAABBTree* tree, const C3D_AABB* aabb, void* userData)
  * @param[in,out]       tree      The resulting C3D_DynamicAABBTree tree object with the specified C3D_DynamicAABBTreeNode node object removed.
  * @param[in]           index     The index of the C3D_DynamicAABBTreeNode node object to be removed, including child C3D_DynamicAABBTreeNode nodes.
  */
-void Tree_Remove(C3D_DynamicAABBTree* tree, const unsigned int index);
+void Tree_Remove(C3D_DynamicAABBTree* tree, const int index);
 
 /**
  * @brief Obtain the C3D_AABB object from C3D_DynamicAABBTreeNode node of index ID from C3D_DynamicAABBTree tree object.
@@ -1461,7 +1461,7 @@ void Tree_Remove(C3D_DynamicAABBTree* tree, const unsigned int index);
  * @param[in]         id             The C3D_DynamicAABBTreeNode node index ID to look for in the C3D_DynamicAABBTree tree object.
  * @return The C3D_AABB object that matches the above conditions. 
  */
-C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, const unsigned int id);
+C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, const int id);
 
 /**
  * @brief Obtains the user data from the C3D_DynamicAABBTreeNode node stored in the C3D_DynamicAABBTree tree object.
@@ -1469,7 +1469,7 @@ C3D_AABB Tree_GetFatAABB(C3D_DynamicAABBTree* tree, const unsigned int id);
  * @param[in]     id           The C3D_DynamicAABBTreeNode node index ID to look for.
  * @return the C3D_AABB object stored in the C3D_DynamicAABBTreeNode node of index ID in the C3D_DynamicAABBTree tree.
  */
-void* Tree_GetUserData(C3D_DynamicAABBTree* tree, const unsigned int id);
+void* Tree_GetUserData(C3D_DynamicAABBTree* tree, const int id);
 
 /**
  * @brief Queries for information to retrieve from the C3D_DynamicAABBTree tree.
@@ -1500,7 +1500,7 @@ void Tree_QueryRaycast(C3D_DynamicAABBTree* tree, C3D_SceneQueryWrapper* const w
  * @param[in,out]         tree              The resulting C3D_DynamicAABBTree tree object with the correct C3D_DynamicAABBTreeNode node positions.
  * @param[in]             index             The index of the C3D_DynamicAABBTreeNode node, for the validation to start from.
  */
-void Tree_ValidateStructure(C3D_DynamicAABBTree* tree, const unsigned int index);
+void Tree_ValidateStructure(C3D_DynamicAABBTree* tree, const int index);
 
 /**
  * @brief Quickly checks if the C3D_DynamicAABBTree tree object itself is intact. Does not include validating the C3D_DynamicAABBTree tree structure in its entirety.
@@ -1514,7 +1514,7 @@ void Tree_Validate(C3D_DynamicAABBTree* tree);
  * @param[in]          id                    The C3D_DynamicAABBTreeNode node to write the new C3D_AABB object to..
  * @param[in]          aabb                  The C3D_AABB object to replace with the already existing C3D_AABB object, stored previously in the C3D_DynamicAABBTreeNode node with the given ID.
  */
-bool Tree_Update(C3D_DynamicAABBTree* tree, const unsigned int id, const C3D_AABB* aabb);
+bool Tree_Update(C3D_DynamicAABBTree* tree, const int id, const C3D_AABB* aabb);
 
 /**************************************************
  * Contact Manager Functions (Manager)
@@ -1526,6 +1526,15 @@ bool Tree_Update(C3D_DynamicAABBTree* tree, const unsigned int id, const C3D_AAB
  * @param[in]        stack            The C3D_PhysicsStack memory stack to initialize the C3D_ContactManager object with.
  */
 void Manager_Init(C3D_ContactManager* manager, C3D_PhysicsStack* stack);
+
+/**
+ * @brief Releases the C3D_ContactManager object.
+ * @param[in,out]       manager           The resulting C3D_ContactManager object.
+ */
+static inline void Manager_Free(C3D_ContactManager* manager)
+{
+	Broadphase_Free(&manager->broadphase);
+}
 
 /**
  * @brief Adds a C3D_ContactConstraint contact where C3D_Box objects, boxA and boxB, are touching or overlapping each other.
@@ -1899,7 +1908,7 @@ bool QueryCallback_ReportShape(C3D_QueryCallback* queryCallback, C3D_Box* box);
  * @param[in,out]        wrapper              The resulting C3D_SceneQueryWrapper object for acquiring the callback.
  * @param[in]            id                   The tree node's ID. Used to gather user data from the tree node. 
  */
-bool QueryWrapper_TreeCallback(C3D_SceneQueryWrapper* wrapper, unsigned int id);
+bool QueryWrapper_TreeCallback(C3D_SceneQueryWrapper* wrapper, int id);
 
 
 /**************************************************
@@ -1933,7 +1942,7 @@ void Scene_Step(C3D_Scene* scene);
  * @param[in]             parameters      The C3D_BodyParameters body properties structure.
  * @return A pointer to the newly created C3D_Body object.
  */
-C3D_Body* Scene_CreateBody(C3D_Scene* scene, const C3D_BodyParameters* parameters);
+C3D_Body* Scene_CreateBody(C3D_Scene* scene, C3D_BodyParameters const* parameters);
 
 /**
  * @brief Removes the given C3D_Body object from the C3D_Scene object.

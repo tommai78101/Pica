@@ -46,7 +46,7 @@ float AABB_GetSurfaceArea(const C3D_AABB* myself)
 	float x = myself->max.x - myself->min.x;
 	float y = myself->max.y - myself->min.y;
 	float z = myself->max.z - myself->min.z;
-	return (float) (2.0f) * (x * x + x * z + y * z);
+	return 2.0f * (x * y + x * z + y * z);
 }
 
 /**

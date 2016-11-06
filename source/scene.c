@@ -11,6 +11,8 @@ void Scene_Init(C3D_Scene* scene, const float deltaTime, const C3D_FVec gravity,
 {
 	Manager_Init(&scene->contactManager, &scene->stack);
 	PhysicsPage_Init(&scene->boxPageAllocator, sizeof(C3D_Box), 256);
+	PhysicsStack_Init(&scene->stack);
+	PhysicsHeap_Init(&scene->heap);
 	scene->bodyCount = 0;
 	scene->bodyList = NULL;
 	scene->gravity = gravity;
@@ -29,6 +31,9 @@ void Scene_Free(C3D_Scene* scene)
 {
 	Scene_RemoveAllBodies(scene);
 	PhysicsPage_Free(&scene->boxPageAllocator);
+	PhysicsStack_Free(&scene->stack);
+	PhysicsHeap_Free(&scene->heap);
+	Manager_Free(&scene->contactManager);
 }
 
 /*
@@ -135,7 +140,7 @@ void Scene_Step(C3D_Scene* scene)
  * @param[in]             parameters      The C3D_BodyParameters body properties structure.
  * @return A pointer to the newly created C3D_Body object.
  */
-C3D_Body* Scene_CreateBody(C3D_Scene* scene, const C3D_BodyParameters* parameters)
+C3D_Body* Scene_CreateBody(C3D_Scene* scene, C3D_BodyParameters const* parameters)
 {
 	C3D_Body* body = (C3D_Body*) PhysicsHeap_Allocate(&scene->heap, sizeof(C3D_Body));
 	Body_InitWithParameters(body, scene, parameters);
@@ -144,7 +149,7 @@ C3D_Body* Scene_CreateBody(C3D_Scene* scene, const C3D_BodyParameters* parameter
 	if (scene->bodyList)
 		scene->bodyList->previous = body;
 	scene->bodyList = body;
-	--scene->bodyCount;
+	++(scene->bodyCount);
 	return body;
 }
 
@@ -226,7 +231,7 @@ void Scene_QueryAABB(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_AA
 	wrapper.aabb = *aabb;
 	wrapper.broadphase = &scene->contactManager.broadphase;
 	wrapper.callback = callback;
-	Tree_QueryWrapper(scene->contactManager.broadphase.tree, &wrapper, aabb);
+	Tree_QueryWrapper(&scene->contactManager.broadphase.tree, &wrapper, aabb);
 }
 
 /**
@@ -247,7 +252,7 @@ void Scene_QueryPoint(C3D_Scene* scene, C3D_QueryCallback* callback, const C3D_F
 	C3D_AABB aabb;
 	aabb.min = FVec3_Subtract(point, vertex);
 	aabb.max = FVec3_Add(point, vertex);
-	Tree_QueryWrapper(scene->contactManager.broadphase.tree, &wrapper, &aabb);
+	Tree_QueryWrapper(&scene->contactManager.broadphase.tree, &wrapper, &aabb);
 }
 
 /**
@@ -263,5 +268,5 @@ void Scene_Raycast(C3D_Scene* scene, C3D_RaycastData* const raycast, C3D_QueryCa
 	wrapper.raycastData = raycast;
 	wrapper.broadphase = &scene->contactManager.broadphase;
 	wrapper.callback = callback;
-	Tree_QueryRaycast(scene->contactManager.broadphase.tree, &wrapper, raycast);
+	Tree_QueryRaycast(&scene->contactManager.broadphase.tree, &wrapper, raycast);
 }

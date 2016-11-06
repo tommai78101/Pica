@@ -57,11 +57,11 @@ void Body_Init(C3D_Body* body, C3D_Scene* scene)
 
 /**
  * @brief Initializes the C3D_Body object with a customized C3D_BodyParameter struct.
- * @param[in,out]     body           The resulting C3D_Body object.
+ * @param[in,out]     body           The pointer to an empty C3D_Body object.
  * @param[in]         scene          The C3D_Scene scene object.
  * @param[in]         parameter      The C3D_BodyParameters struct to initialize the C3D_Body object with.
  */
-void Body_InitWithParameters(C3D_Body* body, C3D_Scene* const scene, const C3D_BodyParameters* parameters)
+void Body_InitWithParameters(C3D_Body* body, C3D_Scene* const scene, C3D_BodyParameters const* parameters)
 {
 	body->linearVelocity = parameters->linearVelocity;
 	body->angularVelocity = parameters->angularVelocity;
@@ -74,7 +74,7 @@ void Body_InitWithParameters(C3D_Body* body, C3D_Scene* const scene, const C3D_B
 	body->gravityScale = parameters->gravityScale;
 	body->collisionLayers = parameters->collisionLayers;
 	body->userData = parameters->userData;
-	body->scene = scene;
+	body->scene = scene; //Not being able to copy C3D_Scene scene data.
 	body->linearDamping = parameters->linearDamping;
 	body->angularDamping = parameters->angularDamping;
 	body->flags = 0;
