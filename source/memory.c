@@ -79,7 +79,7 @@ void PhysicsStack_Deallocate(C3D_PhysicsStack* stack, void* data)
  */
 void PhysicsStack_Reserve(C3D_PhysicsStack* stack, unsigned int size)
 {
-	assert(stack->index);
+	assert(!stack->index);
 	if (size == 0)
 		return;
 	if (size >= stack->stackSize)
