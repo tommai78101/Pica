@@ -9,10 +9,10 @@
  */
 void Scene_Init(C3D_Scene* scene, const float deltaTime, const C3D_FVec gravity, const int iterations)
 {
-	Manager_Init(&scene->contactManager, &scene->stack);
 	PhysicsPage_Init(&scene->boxPageAllocator, sizeof(C3D_Box), 256);
 	PhysicsStack_Init(&scene->stack);
 	PhysicsHeap_Init(&scene->heap);
+	Manager_Init(&scene->contactManager, &scene->stack);
 	scene->bodyCount = 0;
 	scene->bodyList = NULL;
 	scene->gravity = gravity;
@@ -201,21 +201,6 @@ void Scene_SetAllowSleep(C3D_Scene* scene, const bool sleepFlag)
 		for (C3D_Body* body = scene->bodyList; body; body = body->next)
 			Body_SetAwake(body);
 	}
-}
-
-/**
- * @brief Renders the C3D_Scene object.
- * @param[in]        scene         Uses the C3D_Scene object to render.
- */
-void Scene_Render(C3D_Scene* scene)
-{
-	C3D_Body* body = scene->bodyList;
-	while (body)
-	{
-		Body_Render(body);
-		body = body->next;
-	}
-	Manager_RenderConstraints(&scene->contactManager);
 }
 
 /**

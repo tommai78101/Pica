@@ -15,7 +15,7 @@ include $(DEVKITARM)/3ds_rules
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
 #---------------------------------------------------------------------------------
-TARGET		:=	$(shell basename $(CURDIR))
+TARGET		:=	pica
 BUILD		:=	build
 SOURCES		:=	source
 DATA		:=	data

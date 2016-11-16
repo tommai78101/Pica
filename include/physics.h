@@ -27,29 +27,28 @@
 #define C3D_SLEEP_ANGULAR ((1.0f/120.0f) * M_TAU)
 #define C3D_SLEEP_TIME 0.5f
 #define C3D_PENETRATION_SLOP 0.05f
+#define DEBUG
+
+#ifdef DEBUG
+#	include <stdio.h>
+static bool consoleCheck;
+static inline void Debug(char* input)
+{
+	if (!consoleCheck)
+	{
+		static PrintConsole console = {};
+		consoleInit(GFX_BOTTOM, &console);
+		consoleCheck = true;
+	}
+	printf("%s\n", input);
+	gspWaitForVBlank();
+}
+#endif
 
 /**
  * @brief Only used for Dynamic AABB Tree objects and related nodes.
  */
 static const int TREENODE_NULL = -1;
-
-/**
- * @brief This is used for drawing vertices by the indices.
- */
-static const int kBoxIndices[ 36 ] = {
-	0, 6, 4,
-	0, 2, 6,
-	0, 3, 2,
-	0, 1, 3,
-	2, 7, 6,
-	2, 3, 7,
-	4, 6, 7,
-	4, 7, 5,
-	0, 4, 5,
-	0, 5, 1,
-	1, 5, 7,
-	1, 7, 3
-};
 
 /**************************************************
  * Enumerations
@@ -1025,12 +1024,6 @@ static inline float Box_MixRestitution(const C3D_Box* A, const C3D_Box* B)
  */
 bool Box_TestPoint(C3D_Box* box, C3D_Transform* const transform, const C3D_FVec point);
 
-/**
- * @brief Renders the C3D_Box box.
- * TODO: Box_Render() is unimplemented.
- */
-void Box_Render(C3D_Box* box, C3D_Transform* const transform, bool awake);
-
 /**************************************************
  * Physics Body Properties Structure. (BodyParameters)
  **************************************************/
@@ -1249,12 +1242,6 @@ void Body_CalculateMassData(C3D_Body* body);
  * @param[in,out]          body           The resulting C3D_Body object.
  */
 void Body_SynchronizeProxies(C3D_Body* body);
-
-/**
- * @brief Renders the C3D_Body to the screen.
- * @param[in]        body       Uses the C3D_Body object that contains the C3D_Box objects needed to render.
- */
-void Body_Render(C3D_Body* body);
 
 /**************************************************
  * Broadphase Functions (Broadphase)
@@ -1579,12 +1566,6 @@ void Manager_RemoveBodyFromBroadphase(C3D_ContactManager* manager, C3D_Body* bod
  * @param[in,out]       manager           The resulting C3D_ContactManager manager object.
  */
 void Manager_CollisionResponse(C3D_ContactManager* manager);
-
-/**
- * @brief Renders the C3D_ContactConstraint objects.
- * @param[in,out]      manager        The resulting C3D_ContactManager manager object.
- */
-void Manager_RenderConstraints(C3D_ContactManager* manager);
 
 /**************************************************
  * Contact Manifold Functions (Manifold)
@@ -1973,12 +1954,6 @@ static inline void Scene_SetIterations(C3D_Scene* scene, const int iterations)
 {
 	scene->iterations = (iterations > 1 ? iterations : 1);
 }
-
-/**
- * @brief Renders the C3D_Scene object.
- * @param[in]        scene         Uses the C3D_Scene object to render.
- */
-void Scene_Render(C3D_Scene* scene);
 
 /**
  * @brief Set a Contact Listener object to the C3D_Scene object.

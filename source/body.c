@@ -469,19 +469,3 @@ void Body_SynchronizeProxies(C3D_Body* body)
 	}
 }
 
-/**
- * @brief Renders the C3D_Body to the screen.
- * @param[in]        body       Uses the C3D_Body object that contains the C3D_Box objects needed to render.
- */
-void Body_Render(C3D_Body* body)
-{
-	
-	bool awake = Body_IsAwake(body);
-	C3D_Box* box = body->boxes;
-	while (box)
-	{
-		Box_Render(box, &body->transform, awake);
-		box = box->next;
-	}
-}
-
