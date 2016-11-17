@@ -40,6 +40,8 @@ typedef enum DemoType
 typedef struct Demo 
 {
 	int id;
+	int count;
+	u64 accumulatedTime;
 	DemoType type;
 	struct Demo_FuncTable* vmt;
 } Demo;
@@ -47,7 +49,7 @@ typedef struct Demo
 typedef struct Demo_FuncTable 
 {
 	void (*Init)(struct Demo*);
-	void (*Update)(struct Demo*);
+	void (*Update)(struct Demo*, u64 deltaTime);
 	void (*Render)(struct Demo*);
 	void (*Shutdown)(struct Demo*);
 } Demo_FuncTable;
@@ -58,14 +60,21 @@ extern int demoCount;
 extern int currentDemoIterator;
 extern C3D_Scene scene;
 extern C3D_RenderTarget* mainTarget;
+extern int uLoc_projection;
+extern int uLoc_modelView;
+extern DVLB_s* vshader_dvlb;
+extern shaderProgram_s program;
+extern C3D_LightEnv lightEnv;
+extern C3D_Light light;
+extern C3D_LightLut lut_Phong;
 
 void Demos_Init(Demo* d, int id);
 void Demos_Shutdown(Demo* d);
-void Demos_Update(Demo* d);
+void Demos_Update(Demo* d, u64 deltaTime);
 void Demos_Render(Demo* d);
 
 void Demo_DropBox_Init(Demo* d);
-void Demo_DropBox_Update(Demo* d);
+void Demo_DropBox_Update(Demo* d, u64 deltaTime);
 void Demo_DropBox_Render(Demo* d);
 void Demo_DropBox_Shutdown(Demo* d);
 

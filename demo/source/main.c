@@ -1,5 +1,4 @@
 #include "demo.h"
-#include "vshader_shbin.h"
 
 bool paused = false;
 bool singleStep = false;
@@ -9,13 +8,13 @@ int currentDemoIterator = 0;
 C3D_Scene scene = {};
 C3D_RenderTarget* mainTarget = NULL;
 
-static DVLB_s* vshader_dvlb;
-static shaderProgram_s program;
-static int uLoc_projection, uLoc_modelView;
-
-static C3D_LightEnv lightEnv;
-static C3D_Light light;
-static C3D_LightLut lut_Phong;
+int uLoc_projection;
+int uLoc_modelView;
+DVLB_s* vshader_dvlb;
+shaderProgram_s program;
+C3D_LightEnv lightEnv;
+C3D_Light light;
+C3D_LightLut lut_Phong;
 
 void Initialize(Demo* d)
 {
@@ -32,8 +31,8 @@ void Initialize(Demo* d)
 	//Configure attributes
 	C3D_AttrInfo* attrInfo = C3D_GetAttrInfo();
 	AttrInfo_Init(attrInfo);
-	AttrInfo_AddLoader(attrInfo, 0, GPU_FLOAT, 3);
-	AttrInfo_AddLoader(attrInfo, 1, GPU_FLOAT, 3);
+	AttrInfo_AddLoader(attrInfo, 0, GPU_FLOAT, 4);
+	AttrInfo_AddLoader(attrInfo, 1, GPU_FLOAT, 4);
 	
 	
 	// Configure the first fragment shading substage to blend the fragment primary color
@@ -74,19 +73,19 @@ void Initialize(Demo* d)
 	}
 }
 
-void Update(Demo* currentDemo)
+void Update(Demo* currentDemo, u64 deltaTime)
 {
 	if (!paused)
 	{
 		Scene_Step(&scene);
-		Demos_Update(currentDemo);
+		Demos_Update(currentDemo, deltaTime);
 	}
 	else 
 	{
 		if (singleStep)
 		{
 			Scene_Step(&scene);
-			Demos_Update(currentDemo);
+			Demos_Update(currentDemo, deltaTime);
 			singleStep = false;
 		}
 	}
@@ -137,9 +136,14 @@ int main()
 	Demo* currentDemo = demo;
 	Demo* previousDemo = currentDemo;
 	
-	int count = 0;
+	u64 previousTime = osGetTime();
+	u64 currentTime;
 	while (aptMainLoop())
 	{
+		currentTime = osGetTime();
+		u64 deltaTime = currentTime - previousTime;
+		previousTime = currentTime;
+		
 		hidScanInput();
 
 		// Your code goes here
@@ -153,7 +157,7 @@ int main()
 		}
 		
 		//Update
-		Update(currentDemo);
+		Update(currentDemo, deltaTime);
 		
 		u32 kDown = hidKeysDown();
 		//Exit the while loop.
@@ -167,12 +171,13 @@ int main()
 			continue;
 		}
 
-		//Clears the buffer.
-		u8* fb = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
-		memset(fb, 0xDF, 240*400*3); //Sets a value between 0x0 to 0xFF. It's a byte-based memset().
-		
 		//Render code
-		Render(currentDemo);
+		C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+		{
+			C3D_FrameDrawOn(target);
+			Render(currentDemo);
+		}
+		C3D_FrameEnd(0);
 
 		// Flush and swap framebuffers
 		gfxFlushBuffers();

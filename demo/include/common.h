@@ -10,6 +10,7 @@
 #	include <stdio.h>
 #	include <stdarg.h>
 #	include "demo.h"
+#	include "vshader_shbin.h"
 
 #define CLEAR_COLOR 0x68B0D8FF
 
